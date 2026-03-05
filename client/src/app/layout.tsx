@@ -1,5 +1,6 @@
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import Navbar from "@/app/components/Navbar";
 
 export const metadata = {
     title: "Souvenote",
@@ -14,7 +15,10 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body>
-                <AuthProvider>{children}</AuthProvider>
+                <AuthProvider>
+                    <Navbar />
+                    {children}
+                </AuthProvider>
             </body>
         </html>
     );

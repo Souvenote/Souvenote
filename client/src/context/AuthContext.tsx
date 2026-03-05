@@ -32,11 +32,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async () => {
     try {
       const cognitoUser = await getCurrentUser();
-      await fetchAuthSession({ forceRefresh: true });
-      const attributes = await fetchUserAttributes();
+      let email = cognitoUser.signInDetails?.loginId ?? cognitoUser.username;
+
+      try {
+        await fetchAuthSession();
+        const attributes = await fetchUserAttributes();
+        if (attributes.email) {
+          email = attributes.email;
+        }
+      } catch {
+        // Attributes may not be available yet for federated users
+      }
+
       setUser({
         userId: cognitoUser.userId,
-        email: attributes.email ?? cognitoUser.signInDetails?.loginId ?? cognitoUser.username,
+        email,
       });
     } catch {
       setUser(null);

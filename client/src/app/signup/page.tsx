@@ -16,7 +16,7 @@ export default function SignUpPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      router.replace('/');
+      router.replace('/cards');
     }
   }, [user, authLoading, router]);
 

@@ -19,7 +19,7 @@ export default function LoginPage() {
     if (!authLoading && user && isReset) {
       signOut().then(() => refreshUser());
     } else if (!authLoading && user && !isReset) {
-      router.replace('/');
+      router.replace('/cards');
     }
   }, [user, authLoading, isReset, router, refreshUser]);
 
@@ -43,7 +43,7 @@ export default function LoginPage() {
     try {
       await signIn(formData.email, formData.password);
       await refreshUser();
-      router.push('/');
+      router.push('/cards');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Login failed. Please try again.';
       setError(message);

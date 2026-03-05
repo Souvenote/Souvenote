@@ -1,0 +1,68 @@
+import { CardTemplate } from '@/types/card';
+
+export const mockCards: CardTemplate[] = [
+  {
+    id: '1',
+    name: 'Classic Birthday Wishes',
+    occasion: 'Birthday',
+    physicalPreviewUrl: '',
+    digitalPreviewUrl: '',
+    basePriceCents: 1199,
+  },
+  {
+    id: '2',
+    name: 'Golden Anniversary',
+    occasion: 'Anniversary',
+    physicalPreviewUrl: '',
+    digitalPreviewUrl: '',
+    basePriceCents: 1199,
+  },
+  {
+    id: '3',
+    name: 'Elegant Wedding Day',
+    occasion: 'Wedding',
+    physicalPreviewUrl: '',
+    digitalPreviewUrl: '',
+    basePriceCents: 1199,
+  },
+  {
+    id: '4',
+    name: 'Heartfelt Thanks',
+    occasion: 'Thank You',
+    physicalPreviewUrl: '',
+    digitalPreviewUrl: '',
+    basePriceCents: 1199,
+  },
+  {
+    id: '5',
+    name: 'Festive Holiday Cheer',
+    occasion: 'Holiday',
+    physicalPreviewUrl: '',
+    digitalPreviewUrl: '',
+    basePriceCents: 1199,
+  },
+  {
+    id: '6',
+    name: 'Fun Birthday Balloons',
+    occasion: 'Birthday',
+    physicalPreviewUrl: '',
+    digitalPreviewUrl: '',
+    basePriceCents: 1199,
+  },
+  {
+    id: '7',
+    name: 'Romantic Anniversary',
+    occasion: 'Anniversary',
+    physicalPreviewUrl: '',
+    digitalPreviewUrl: '',
+    basePriceCents: 1199,
+  },
+  {
+    id: '8',
+    name: 'Floral Wedding Bliss',
+    occasion: 'Wedding',
+    physicalPreviewUrl: '',
+    digitalPreviewUrl: '',
+    basePriceCents: 1199,
+  },
+];
