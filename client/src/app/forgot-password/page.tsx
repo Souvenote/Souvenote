@@ -2,185 +2,88 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { resetPassword, confirmResetPassword } from '@/lib/auth';
-
-type Step = 'request' | 'confirm';
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
-  const [step, setStep] = useState<Step>('request');
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+    const [email, setEmail] = useState('');
+    const [submitted, setSubmitted] = useState(false);
 
-  const handleRequestReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        // TODO: Connect to backend password reset endpoint
+        setSubmitted(true);
+    };
 
-    try {
-      await resetPassword(email);
-      setStep('confirm');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to send reset code. Please try again.';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return (
+        <div className="min-h-screen bg-white flex flex-col font-sans text-[#111111]">
+            <header className="flex items-center px-6 py-4 border-b border-gray-100 text-sm">
+                <div className="font-bold text-lg tracking-tight">
+                    <Link href="/">Souvenote</Link>
+                </div>
+            </header>
 
-  const handleConfirmReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+            <main className="flex-grow flex items-center justify-center px-4 py-12 bg-gray-50">
+                <div className="w-full max-w-[400px] bg-white p-8 border border-gray-100 rounded-xl shadow-sm">
 
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return;
-    }
+                    {submitted ? (
+                        <div className="text-center space-y-4">
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
+                                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                </svg>
+                            </div>
+                            <h1 className="text-2xl font-semibold">Check your email</h1>
+                            <p className="text-sm text-gray-500 leading-relaxed">
+                                We&apos;ve sent a password reset link to <span className="font-medium text-black">{email}</span>. Check your inbox and follow the instructions.
+                            </p>
+                            <Link
+                                href="/login"
+                                className="inline-block mt-2 text-sm font-medium text-[#111111] underline underline-offset-4 hover:text-gray-500 transition-colors"
+                            >
+                                Return to login
+                            </Link>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="text-center mb-8">
+                                <h1 className="text-2xl font-semibold mb-2">Forgot password</h1>
+                                <p className="text-gray-500 text-sm leading-relaxed">
+                                    Enter your email address and we&apos;ll send you a link to reset your password.
+                                </p>
+                            </div>
 
-    setLoading(true);
-    try {
-      await confirmResetPassword(email, code, newPassword);
-      window.location.href = '/login?reset=true';
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Password reset failed. Please try again.';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="email">
+                                        Email address
+                                    </label>
+                                    <input
+                                        type="email"
+                                        id="email"
+                                        placeholder="Enter your email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
+                                    />
+                                </div>
 
-  return (
-    <div className="min-h-screen bg-white flex flex-col font-sans text-[#111111]">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-gray-100 text-sm">
-        <div className="font-bold text-lg tracking-tight">
-          <Link href="/">Souvenote</Link>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-[#111111] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+                                >
+                                    Send reset link
+                                </button>
+                            </form>
+
+                            <p className="text-center mt-6 text-sm text-gray-500">
+                                <Link href="/login" className="text-[#111111] font-medium hover:underline">
+                                    Return to login
+                                </Link>
+                            </p>
+                        </>
+                    )}
+                </div>
+            </main>
         </div>
-      </header>
-
-      <main className="grow flex items-center justify-center px-4 py-12 bg-gray-50">
-        <div className="w-full max-w-[400px] bg-white p-8 border border-gray-100 rounded-xl shadow-sm">
-
-          {step === 'request' && (
-            <>
-              <div className="text-center mb-8">
-                <h1 className="text-[28px] font-semibold mb-2">Forgot password</h1>
-                <p className="text-gray-500 text-sm">Enter your email and we&apos;ll send you a reset code</p>
-              </div>
-
-              <form onSubmit={handleRequestReset} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="email">Email address</label>
-                  <input
-                    type="email"
-                    id="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); if (error) setError(''); }}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                    required
-                  />
-                </div>
-
-                {error && <p className="text-red-500 text-xs font-medium">{error}</p>}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#111111] text-white py-3 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Sending...' : 'Send reset code'}
-                </button>
-              </form>
-
-              <div className="text-center mt-6 text-sm text-gray-500">
-                <Link href="/login" className="text-[#111111] font-medium hover:underline">Back to log in</Link>
-              </div>
-            </>
-          )}
-
-          {step === 'confirm' && (
-            <>
-              <div className="text-center mb-8">
-                <h1 className="text-[28px] font-semibold mb-2">Reset password</h1>
-                <p className="text-gray-500 text-sm">
-                  Enter the code sent to <span className="font-medium text-[#111111]">{email}</span>
-                </p>
-              </div>
-
-              <form onSubmit={handleConfirmReset} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="code">Verification code</label>
-                  <input
-                    type="text"
-                    id="code"
-                    placeholder="Enter 6-digit code"
-                    value={code}
-                    onChange={(e) => { setCode(e.target.value); if (error) setError(''); }}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-lg placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors text-center tracking-widest"
-                    maxLength={6}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="newPassword">New password</label>
-                  <input
-                    type="password"
-                    id="newPassword"
-                    placeholder="Enter new password"
-                    value={newPassword}
-                    onChange={(e) => { setNewPassword(e.target.value); if (error) setError(''); }}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="confirmPassword">Confirm new password</label>
-                  <input
-                    type="password"
-                    id="confirmPassword"
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => { setConfirmPassword(e.target.value); if (error) setError(''); }}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                    required
-                  />
-                </div>
-
-                {error && <p className="text-red-500 text-xs font-medium">{error}</p>}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#111111] text-white py-3 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Resetting...' : 'Reset password'}
-                </button>
-              </form>
-
-              <div className="text-center mt-6 text-sm text-gray-500">
-                <button
-                  onClick={() => setStep('request')}
-                  className="text-[#111111] font-medium hover:underline"
-                >
-                  Try a different email
-                </button>
-              </div>
-            </>
-          )}
-
-        </div>
-      </main>
-    </div>
-  );
+    );
 }
