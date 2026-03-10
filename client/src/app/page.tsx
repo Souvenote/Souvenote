@@ -53,33 +53,37 @@ export default function Home() {
         <main className="text-[#111111]">
 
             {/* ── Hero ──────────────────────────────────────────────── */}
-            <section className="max-w-6xl mx-auto px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                <div className="space-y-6">
-                    <h1 className="text-4xl lg:text-5xl font-bold leading-tight">
-                        A card worth keeping.
-                    </h1>
-                    <p className="text-gray-500 text-base leading-relaxed max-w-md">
-                        AI-generated cards with a personalized song — built around the person you&apos;re giving it to.
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                        <Link
-                            href="/signup"
-                            className="bg-black text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
-                        >
-                            Start for free — includes your first image and song
-                        </Link>
-                        <Link
-                            href="/login"
-                            className="border border-gray-300 text-[#111] px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-                        >
-                            Log in
-                        </Link>
-                    </div>
-                </div>
-                <div className="bg-gray-100 rounded-2xl aspect-[3/4] flex items-center justify-center order-first lg:order-last">
-                    <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            <section className="bg-white py-20 px-6 flex flex-col items-center text-center gap-6">
+                {/* Large company logo */}
+                <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-black text-white">
+                    <svg className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                     </svg>
+                </div>
+
+                <h1 className="text-4xl lg:text-5xl font-bold leading-tight max-w-xl">
+                    A card worth keeping
+                </h1>
+                <p className="text-gray-500 text-base leading-relaxed max-w-md">
+                    Generate personalized cards and custom songs. Because the card you send should be as unique as they are.
+                </p>
+
+                <div className="flex flex-wrap justify-center gap-3 mt-2">
+                    <Link
+                        href="/signup"
+                        className="relative bg-black text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors animate-pulse"
+                    >
+                        Start for Free
+                        <span className="block text-[10px] font-normal text-gray-300 mt-0.5">
+                            Includes 1 free image generation and 1 free song
+                        </span>
+                    </Link>
+                    <Link
+                        href="/login"
+                        className="border border-gray-300 text-[#111] px-6 py-3 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors self-center"
+                    >
+                        Log In
+                    </Link>
                 </div>
             </section>
 
@@ -98,13 +102,7 @@ export default function Home() {
 
             {/* ── Explainer Video ───────────────────────────────────── */}
             <section className="py-20">
-                <div className="max-w-6xl mx-auto px-6">
-                    <div className="text-center mb-10 space-y-3">
-                        <h2 className="text-3xl font-bold">See how it works</h2>
-                        <p className="text-gray-500 text-sm max-w-md mx-auto leading-relaxed">
-                            Under 90 seconds. Auto-captioned. See the full creation flow from start to finish.
-                        </p>
-                    </div>
+                <div className="max-w-4xl mx-auto px-6">
                     <div className="relative bg-gray-200 rounded-2xl aspect-video flex items-center justify-center">
                         <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-md">
                             <svg className="w-6 h-6 text-gray-700 ml-1" fill="currentColor" viewBox="0 0 24 24">
@@ -122,72 +120,52 @@ export default function Home() {
             <section className="bg-gray-50 py-20">
                 <div className="max-w-6xl mx-auto px-6">
                     <div className="text-center mb-12 space-y-3">
-                        <h2 className="text-3xl font-bold">How Souvenote works</h2>
-                        <p className="text-gray-500 text-sm max-w-lg mx-auto leading-relaxed">
-                            Three steps. A card they&apos;ll actually keep.
-                        </p>
+                        <h2 className="text-3xl font-bold">How it works</h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
                         {[
                             {
-                                step: '01',
-                                title: 'Answer questions about who you\'re celebrating',
-                                desc: 'Tell us about the recipient — their name, your relationship, the occasion, and what makes them them.',
+                                icon: (
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                                    </svg>
+                                ),
+                                step: '1',
+                                title: 'Choose from a template or answer a few questions',
                             },
                             {
-                                step: '02',
-                                title: 'We generate a card and song',
-                                desc: 'Our AI creates a custom image and a personalized song built around your answers. Review, revise, or approve.',
+                                icon: (
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                                    </svg>
+                                ),
+                                step: '2',
+                                title: "We'll create your card and a personalized song",
                             },
                             {
-                                step: '03',
-                                title: 'Keep it digital or print and mail it',
-                                desc: 'Send instantly via email or SMS, or have it printed and shipped directly to them — with the song inside via QR code.',
+                                icon: (
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                                    </svg>
+                                ),
+                                step: '3',
+                                title: 'We print it and send it',
                             },
-                        ].map(({ step, title, desc }) => (
-                            <div key={step} className="space-y-3">
-                                <span className="text-xs font-bold tracking-widest text-gray-300">{step}</span>
-                                <h3 className="font-semibold text-sm leading-snug">{title}</h3>
-                                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
+                        ].map(({ icon, step, title }) => (
+                            <div key={step} className="flex flex-col items-center gap-4">
+                                <div className="w-14 h-14 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 shadow-sm">
+                                    {icon}
+                                </div>
+                                <span className="text-xs font-bold tracking-widest text-gray-300">STEP {step}</span>
+                                <h3 className="font-semibold text-sm leading-snug max-w-[180px]">{title}</h3>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* ── Primary CTA ───────────────────────────────────────── */}
-            <section className="py-20">
-                <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                    <div className="space-y-6">
-                        <h2 className="text-3xl font-bold">Ready to create something memorable</h2>
-                        <p className="text-gray-500 text-sm leading-relaxed max-w-sm">
-                            Your first card creation is on us — one image and one song, free. No credit card required to start.
-                        </p>
-                        <div className="flex flex-wrap items-center gap-4">
-                            <Link
-                                href="/create"
-                                className="bg-black text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
-                            >
-                                Start building your card
-                            </Link>
-                            <Link
-                                href="/about"
-                                className="text-sm font-medium underline underline-offset-4 hover:text-gray-500 transition-colors"
-                            >
-                                Learn more
-                            </Link>
-                        </div>
-                    </div>
-                    <div className="bg-gray-100 rounded-2xl aspect-square flex items-center justify-center">
-                        <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                        </svg>
-                    </div>
-                </div>
-            </section>
-
             {/* ── FAQ ────────────────────────────────────────────────── */}
-            <section className="bg-gray-50 py-20">
+            <section className="py-20">
                 <div className="max-w-2xl mx-auto px-6">
                     <div className="text-center mb-10 space-y-3">
                         <h2 className="text-3xl font-bold">Questions</h2>
@@ -199,7 +177,7 @@ export default function Home() {
                     <div className="text-center mt-10">
                         <Link
                             href="/faq"
-                            className="inline-block border border-gray-300 text-sm px-6 py-2 rounded-lg hover:bg-white transition-colors"
+                            className="inline-block border border-gray-300 text-sm px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                         >
                             View all FAQs
                         </Link>
@@ -208,7 +186,7 @@ export default function Home() {
             </section>
 
             {/* ── Footer ─────────────────────────────────────────────── */}
-            <footer className="border-t border-gray-100 py-16">
+            <footer className="border-t border-gray-100 py-16 bg-gray-50">
                 <div className="max-w-6xl mx-auto px-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
                         {/* Newsletter */}
@@ -275,7 +253,7 @@ export default function Home() {
 
                     {/* Bottom bar */}
                     <div className="border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-400">
-                        <span>© 2024 Souvenote. All rights reserved.</span>
+                        <span>© 2025 Souvenote. All rights reserved.</span>
                         <div className="flex gap-4">
                             <Link href="/privacy" className="hover:text-black transition-colors">Privacy</Link>
                             <Link href="/cookies" className="hover:text-black transition-colors">Cookies</Link>
