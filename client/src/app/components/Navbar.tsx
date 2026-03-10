@@ -42,6 +42,7 @@ export default function Navbar() {
     const pathname = usePathname();
     const [hoveredLink, setHoveredLink] = useState<string | null>(null);
     const [menuOpen, setMenuOpen] = useState(false);
+    const [profileOpen, setProfileOpen] = useState(false);
 
     if (pathname === '/signup' || pathname === '/login') {
         return null;
@@ -97,6 +98,39 @@ export default function Navbar() {
                         </svg>
                         <span>0</span>
                     </span>
+                </div>
+
+                {/* Profile icon */}
+                <div className="relative hidden sm:block">
+                    <button
+                        aria-label="Profile"
+                        onClick={() => setProfileOpen((o) => !o)}
+                        className="hover:text-gray-500 transition-colors"
+                    >
+                        <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                    </button>
+                    {profileOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
+                            <div className="absolute right-0 top-full mt-3 w-44 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-2">
+                                <Link
+                                    href="/account"
+                                    onClick={() => setProfileOpen(false)}
+                                    className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
+                                >
+                                    Account settings
+                                </Link>
+                                <button
+                                    onClick={() => setProfileOpen(false)}
+                                    className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 transition-colors"
+                                >
+                                    Log Out
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* Cart */}
