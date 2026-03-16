@@ -5,15 +5,12 @@ import Link from 'next/link';
 export default function CreatePage() {
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans text-[#111111]">
-
-      <header className="flex items-center justify-between px-6 py-4 border-b border-gray-100 text-sm">
-        <div className="font-bold text-lg tracking-tight">
-          <Link href="/">Souvenote</Link>
-        </div>
+      <div className="flex justify-end px-6 py-4">
         <Link href="/cards" className="text-gray-500 hover:text-[#111111] transition-colors text-sm">
           ← Browse cards
         </Link>
-      </header>
+      </div>
+
 
       <main className="flex-grow flex items-center justify-center px-4 py-20">
         <div className="text-center max-w-md">

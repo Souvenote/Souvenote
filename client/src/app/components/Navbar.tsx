@@ -44,7 +44,7 @@ export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
 
-    if (pathname === '/signup' || pathname === '/login') {
+    if (pathname === '/signup' || pathname === '/login' || pathname === '/forgot-password') {
         return null;
     }
 
