@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { musicApi } from '@/lib/api';
 
 const NAV_LINKS = [
     {
@@ -39,10 +41,63 @@ const HAMBURGER_LINKS = [
 ];
 
 export default function Navbar() {
+    const router = useRouter();
     const pathname = usePathname();
+    const { user, loading, logout } = useAuth();
     const [hoveredLink, setHoveredLink] = useState<string | null>(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [imageCredits, setImageCredits] = useState(0);
+    const [songCredits, setSongCredits] = useState(0);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadCredits() {
+            if (loading) return;
+
+            if (!user) {
+                if (isMounted) {
+                    setImageCredits(0);
+                    setSongCredits(0);
+                }
+                return;
+            }
+
+            try {
+                const credits = await musicApi.getCredits();
+
+                if (isMounted) {
+                    setImageCredits(credits.image);
+                    setSongCredits(credits.song);
+                }
+            } catch {
+                if (isMounted) {
+                    setImageCredits(0);
+                    setSongCredits(0);
+                }
+            }
+        }
+
+        void loadCredits();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [loading, user]);
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+        } finally {
+            setProfileOpen(false);
+            setMenuOpen(false);
+            setImageCredits(0);
+            setSongCredits(0);
+            router.push('/');
+            router.refresh();
+        }
+    };
 
     if (pathname === '/signup' || pathname === '/login' || pathname === '/forgot-password') {
         return null;
@@ -89,14 +144,14 @@ export default function Navbar() {
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
                         </svg>
-                        <span>0</span>
+                        <span>{loading ? '...' : imageCredits}</span>
                     </span>
                     <span className="flex items-center gap-1">
                         {/* Music credit icon */}
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
                         </svg>
-                        <span>0</span>
+                        <span>{loading ? '...' : songCredits}</span>
                     </span>
                 </div>
 
@@ -115,19 +170,40 @@ export default function Navbar() {
                         <>
                             <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
                             <div className="absolute right-0 top-full mt-3 w-44 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-2">
-                                <Link
-                                    href="/account"
-                                    onClick={() => setProfileOpen(false)}
-                                    className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
-                                >
-                                    Account settings
-                                </Link>
-                                <button
-                                    onClick={() => setProfileOpen(false)}
-                                    className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 transition-colors"
-                                >
-                                    Log Out
-                                </button>
+                                {user ? (
+                                    <>
+                                        <Link
+                                            href="/account"
+                                            onClick={() => setProfileOpen(false)}
+                                            className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
+                                        >
+                                            Account settings
+                                        </Link>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 transition-colors"
+                                        >
+                                            Log Out
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Link
+                                            href="/login"
+                                            onClick={() => setProfileOpen(false)}
+                                            className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
+                                        >
+                                            Log in
+                                        </Link>
+                                        <Link
+                                            href="/signup"
+                                            onClick={() => setProfileOpen(false)}
+                                            className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
+                                        >
+                                            Create account
+                                        </Link>
+                                    </>
+                                )}
                             </div>
                         </>
                     )}

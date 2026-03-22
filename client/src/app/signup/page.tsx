@@ -2,6 +2,15 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  signUp,
+  confirmSignUp,
+  isAuthConfigured,
+  getAuthConfigErrorMessage,
+  getAuthErrorMessage,
+} from '@/lib/auth';
+import { useAuth } from '@/context/AuthContext';
 
 function EyeIcon({ open }: { open: boolean }) {
   if (open) {
@@ -20,6 +29,8 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 export default function SignUpPage() {
+  const router = useRouter();
+  const { refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -29,15 +40,20 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+  const [confirmationCode, setConfirmationCode] = useState('');
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    if (error) setError(''); 
+    if (error) setError('');
+    if (info) setInfo('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -47,8 +63,52 @@ export default function SignUpPage() {
       return;
     }
 
-    console.log('Frontend Validation Passed. Ready for AWS backend:', formData);
-     // TODO Task: Connect to AWS Cognito/Backend, we need to get some knowledge about AWS Cognito for Auth. 
+    if (!isAuthConfigured()) {
+      setError(getAuthConfigErrorMessage());
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setInfo('');
+
+    try {
+      const result = await signUp(formData.email, formData.password, formData.fullName);
+
+      if (result.nextStep.signUpStep === 'CONFIRM_SIGN_UP') {
+        setAwaitingConfirmation(true);
+        setInfo('We sent a confirmation code to your email. Enter it below to finish creating your account.');
+      } else {
+        setInfo('Account created successfully. Redirecting to login...');
+        router.push('/login');
+      }
+    } catch (signupError) {
+      setError(getAuthErrorMessage(signupError));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!confirmationCode.trim()) {
+      setError('Enter the confirmation code from your email.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await confirmSignUp(formData.email, confirmationCode.trim());
+      setInfo('Your account is confirmed. You can log in now.');
+      router.push('/login');
+    } catch (confirmError) {
+      setError(getAuthErrorMessage(confirmError));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -64,11 +124,19 @@ export default function SignUpPage() {
       <main className="flex-grow flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-[360px]">
           <div className="text-center mb-8">
-            <h1 className="text-[28px] font-semibold mb-2">Sign up</h1>
-            <p className="text-gray-500 text-sm">Create your account and start designing</p>
+            <h1 className="text-[28px] font-semibold mb-2">
+              {awaitingConfirmation ? 'Confirm your email' : 'Sign up'}
+            </h1>
+            <p className="text-gray-500 text-sm">
+              {awaitingConfirmation
+                ? 'Enter the code we sent to your inbox to activate your account.'
+                : 'Create your account and start designing'}
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={awaitingConfirmation ? handleConfirm : handleSubmit} className="space-y-4">
+            {!awaitingConfirmation && (
+              <>
             {/* Full Name */}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="fullName">Full name</label>
@@ -148,6 +216,34 @@ export default function SignUpPage() {
                 </button>
               </div>
             </div>
+              </>
+            )}
+
+            {awaitingConfirmation && (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="confirmationCode">
+                  Confirmation code
+                </label>
+                <input
+                  type="text"
+                  id="confirmationCode"
+                  name="confirmationCode"
+                  placeholder="Enter the code from your email"
+                  value={confirmationCode}
+                  onChange={(e) => {
+                    setConfirmationCode(e.target.value);
+                    if (error) setError('');
+                  }}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
+                  required
+                />
+                <p className="text-xs text-gray-400 mt-2">Email: {formData.email}</p>
+              </div>
+            )}
+
+            {info && (
+              <p className="text-emerald-600 text-xs font-medium leading-relaxed">{info}</p>
+            )}
 
             {/* Error Message Display */}
             {error && (
@@ -157,9 +253,10 @@ export default function SignUpPage() {
             {/* Sign Up Button */}
             <button 
               type="submit" 
-              className="w-full bg-[#111111] text-white py-3 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors mt-2"
+              disabled={loading}
+              className="w-full bg-[#111111] text-white py-3 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign up
+              {loading ? 'Please wait...' : awaitingConfirmation ? 'Confirm account' : 'Sign up'}
             </button>
           </form>
 

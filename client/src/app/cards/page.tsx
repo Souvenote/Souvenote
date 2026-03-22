@@ -34,32 +34,46 @@ export default function CardsPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [formatModalOpen, setFormatModalOpen] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<CardFormat | null>(null);
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [personalizationOpen, setPersonalizationOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
   const pendingActionRef = useRef<CardAction | null>(null);
 
-  const handleAction = (action: CardAction) => {
+  const handleAction = (action: CardAction, card?: Card) => {
     if (action === 'build') {
       router.push('/create');
       return;
     }
+
+    setSelectedCard(card ?? null);
     pendingActionRef.current = action;
     setFormatModalOpen(true);
-  };
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
   };
 
   const handleFormatSelect = (format: CardFormat) => {
     setSelectedFormat(format);
     setFormatModalOpen(false);
+
     if (pendingActionRef.current === 'personalize') {
       setPersonalizationOpen(true);
     } else {
-      const label = format === 'physical' ? 'Physical card (CDN $9.99)' : 'Digital card (CDN $2.99)';
-      showToast(`${label} added! Checkout coming soon.`);
+      const searchParams = new URLSearchParams({
+        designPrompt: [
+          `${format} greeting card`,
+          selectedCard ? `${selectedCard.title} template` : 'ready-made template',
+          selectedCard ? `${selectedCard.category.toLowerCase()} occasion` : null,
+          'clean editorial card design',
+        ]
+          .filter(Boolean)
+          .join(', '),
+        format,
+      });
+
+      if (selectedCard) {
+        searchParams.set('templateTitle', selectedCard.title);
+        searchParams.set('occasion', selectedCard.category);
+      }
+
+      router.push(`/create/music?${searchParams.toString()}`);
     }
   };
 
@@ -74,13 +88,6 @@ export default function CardsPage() {
     <main className="grow flex flex-col bg-white text-[#111111] font-sans">
       <WelcomePopup />
 
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#111111] text-white text-sm px-5 py-3 rounded-lg shadow-lg z-50 transition-all">
-          {toast}
-        </div>
-      )}
-
       <FormatModal
         open={formatModalOpen}
         onClose={() => setFormatModalOpen(false)}
@@ -90,8 +97,10 @@ export default function CardsPage() {
       <PersonalizationFlow
         open={personalizationOpen}
         format={selectedFormat}
+        cardTitle={selectedCard?.title}
+        cardCategory={selectedCard?.category}
         onClose={() => setPersonalizationOpen(false)}
-        onComplete={() => showToast('Card personalized! We\'ll have it ready within 48 hours.')}
+        onComplete={() => setPersonalizationOpen(false)}
       />
 
       {/* Filter bar */}
@@ -167,13 +176,13 @@ export default function CardsPage() {
               {/* Action buttons */}
               <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => handleAction('select')}
+                  onClick={() => handleAction('select', card)}
                   className="px-5 py-2.5 bg-[#111111] text-white text-sm font-medium hover:bg-gray-800 transition-colors cursor-pointer"
                 >
                   Select as is
                 </button>
                 <button
-                  onClick={() => handleAction('personalize')}
+                  onClick={() => handleAction('personalize', card)}
                   className="px-5 py-2.5 bg-white border border-gray-300 text-[#111111] text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Personalize

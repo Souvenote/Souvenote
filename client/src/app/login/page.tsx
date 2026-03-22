@@ -2,6 +2,14 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  signIn,
+  isAuthConfigured,
+  getAuthConfigErrorMessage,
+  getAuthErrorMessage,
+} from '@/lib/auth';
+import { useAuth } from '@/context/AuthContext';
 
 function EyeIcon({ open }: { open: boolean }) {
   if (open) {
@@ -20,20 +28,56 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (error) setError('');
+    if (info) setInfo('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login credentials ready for backend:', formData);
-    // TODO: Connect to AWS Cognito for actual authentication
+
+    if (!isAuthConfigured()) {
+      setError(getAuthConfigErrorMessage());
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setInfo('');
+
+    try {
+      const result = await signIn(formData.email, formData.password);
+
+      if (result.isSignedIn) {
+        await refreshUser();
+        router.push('/options');
+        router.refresh();
+        return;
+      }
+
+      if (result.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
+        setInfo('Your account still needs email confirmation. Finish signup first, then log in.');
+        return;
+      }
+
+      setInfo('Additional sign-in steps are required in Cognito before this account can continue.');
+    } catch (loginError) {
+      setError(getAuthErrorMessage(loginError));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -103,12 +147,21 @@ export default function LoginPage() {
               </Link>
             </div>
 
+            {info && (
+              <p className="text-emerald-600 text-xs font-medium leading-relaxed">{info}</p>
+            )}
+
+            {error && (
+              <p className="text-red-500 text-xs font-medium">{error}</p>
+            )}
+
             {/* Log In Button */}
             <button 
               type="submit" 
-              className="w-full bg-[#111111] text-white py-3 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors mt-2"
+              disabled={loading}
+              className="w-full bg-[#111111] text-white py-3 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Log in
+              {loading ? 'Please wait...' : 'Log in'}
             </button>
           </form>
 
