@@ -1,34 +1,22 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { CreditTransactionsService } from './credit-transactions.service';
-import { CreateCreditTransactionDto } from './dto/create-credit-transaction.dto';
-import { UpdateCreditTransactionDto } from './dto/update-credit-transaction.dto';
+import { CognitoAuthGuard } from '../auth/cognito.guard';
+import { CurrentUser } from '../auth/user.decorator';
 
 @Controller('credit-transactions')
+@UseGuards(CognitoAuthGuard)
 export class CreditTransactionsController {
-  constructor(private readonly creditTransactionsService: CreditTransactionsService) {}
-
-  @Post()
-  create(@Body() createCreditTransactionDto: CreateCreditTransactionDto) {
-    return this.creditTransactionsService.create(createCreditTransactionDto);
-  }
+  constructor(
+    private readonly creditTransactionsService: CreditTransactionsService,
+  ) {}
 
   @Get()
-  findAll() {
-    return this.creditTransactionsService.findAll();
+  findAll(@CurrentUser('sub') userId: string) {
+    return this.creditTransactionsService.findAllByUser(userId);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.creditTransactionsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCreditTransactionDto: UpdateCreditTransactionDto) {
-    return this.creditTransactionsService.update(+id, updateCreditTransactionDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.creditTransactionsService.remove(+id);
+    return this.creditTransactionsService.findOne(id);
   }
 }
