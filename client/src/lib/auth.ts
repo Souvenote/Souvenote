@@ -38,7 +38,7 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
-  return amplifySignOut();
+  return amplifySignOut({ global: true });
 }
 
 export async function signInWithGoogle() {

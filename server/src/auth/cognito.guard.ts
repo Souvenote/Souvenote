@@ -6,21 +6,21 @@ import {
 } from '@nestjs/common';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
 
-const verifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.COGNITO_USER_POOL_ID!,
-  tokenUse: 'access',
-  clientId: process.env.COGNITO_CLIENT_ID!,
-});
-
-export interface CognitoPayload {
-  sub: string;
-  email?: string;
-  'cognito:username': string;
-  token_use: string;
-}
-
 @Injectable()
 export class CognitoAuthGuard implements CanActivate {
+  private verifier: any;
+
+  private getVerifier() {
+    if (!this.verifier) {
+      this.verifier = CognitoJwtVerifier.create({
+        userPoolId: process.env.COGNITO_USER_POOL_ID!,
+        tokenUse: 'access',
+        clientId: process.env.COGNITO_CLIENT_ID!,
+      });
+    }
+    return this.verifier;
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;
@@ -32,7 +32,7 @@ export class CognitoAuthGuard implements CanActivate {
     const token = authHeader.split(' ')[1];
 
     try {
-      const payload = await verifier.verify(token);
+      const payload = await this.getVerifier().verify(token);
       request.user = {
         sub: payload.sub,
         email: payload['email'] ?? payload['cognito:username'],

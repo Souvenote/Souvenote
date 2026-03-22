@@ -2,6 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { signIn } from '@/lib/auth';
+import { useAuth } from '@/context/AuthContext';
+import SocialLoginButtons from '../components/SocialLoginButtons';
 
 function EyeIcon({ open }: { open: boolean }) {
   if (open) {
@@ -20,104 +24,156 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { user, refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (error) setError('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login credentials ready for backend:', formData);
-    // TODO: Connect to AWS Cognito for actual authentication
+    
+    if (user) {
+      router.push('/options');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await signIn(formData.email, formData.password);
+      await refreshUser();
+      router.push('/options');
+    } catch (err: any) {
+      if (err.name === 'UserAlreadyAuthenticatedException') {
+        router.push('/options');
+      } else {
+        console.error('Login error:', err);
+        setError(err.message || 'Failed to log in. Please check your credentials.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col font-sans text-[#111111]">
-      
-      <header className="flex items-center justify-between px-6 py-4 border-b border-gray-100 text-sm">
-        <div className="font-bold text-lg tracking-tight">
-          <Link href="/">Souvenote</Link>
-        </div>
-      </header>
-
-      {/* MAIN CONTENT - LOG IN FORM */}
-      <main className="flex-grow flex items-center justify-center px-4 py-12 bg-gray-50">
-        <div className="w-full max-w-[400px] bg-white p-8 border border-gray-100 rounded-xl shadow-sm">
-          
-          {/* Title and Subtitle */}
-          <div className="text-center mb-8">
-            <h1 className="text-[28px] font-semibold mb-2">Log in</h1>
-            <p className="text-gray-500 text-sm">Access your cards and continue creating</p>
+    <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] to-[#e8e8e8] flex items-center justify-center px-4 py-12 font-sans">
+      <div className="w-full max-w-[820px] bg-white rounded-[18px] shadow-lg overflow-hidden">
+        <div className="p-8 md:p-12">
+          {/* Header */}
+          <div className="text-center mb-10 md:mb-12">
+            <div className="w-12 h-12 bg-[#111111] rounded-lg mx-auto mb-6 flex items-center justify-center text-white font-bold text-xl">
+              SN
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold text-[#1a1a1a] mb-2">Log in</h1>
+            <p className="text-[#888] text-base md:text-lg">
+              Access your cards and continue creating
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email Address Input */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="email">Email address</label>
-              <input 
-                type="email" 
-                id="email" 
-                name="email"
-                placeholder="Enter your email" 
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                required
-              />
-            </div>
+          {/* Main Content */}
+          <div className="flex flex-col md:flex-row gap-8">
+            {/* Left Column - Form */}
+            <div className="flex-1 order-2 md:order-1">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Email Field */}
+                <div>
+                  <label htmlFor="email" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider mb-2">
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                  />
+                </div>
 
-            {/* Password Input */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="password">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  name="password"
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                />
+                {/* Password Field */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label htmlFor="password" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider">
+                      Password
+                    </label>
+                    <Link href="/forgot-password" className="text-xs font-semibold text-[#888] hover:text-[#111111]">
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <EyeIcon open={showPassword} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Error Message Display */}
+                {error && (
+                  <p className="text-red-500 text-xs font-medium">{error}</p>
+                )}
+
+                {/* Submit Button */}
                 <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  type="submit"
+                  disabled={loading}
+                  className="w-full mt-6 py-3 bg-[#111111] text-white font-semibold rounded-[10px] hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <EyeIcon open={showPassword} />
+                  {loading ? 'Logging in...' : 'Log in'}
                 </button>
-              </div>
+              </form>
             </div>
 
-            {/* Forgot Password Link */}
-            <div className="text-sm font-medium">
-              <Link href="/forgot-password" className="text-gray-500 hover:text-[#111111] transition-colors">
-                Forgot password?
+            {/* Center Divider */}
+            <div className="flex flex-row md:flex-col items-center justify-center gap-3 order-3 md:order-2">
+              <div className="h-px md:w-px w-full md:h-16 bg-[#eee]"></div>
+              <span className="text-[#bbb] text-xs font-bold uppercase px-2">or</span>
+              <div className="h-px md:w-px w-full md:h-16 bg-[#eee]"></div>
+            </div>
+
+            {/* Right Column - Social Login */}
+            <div className="flex-1 order-1 md:order-3 flex flex-col justify-center">
+              <SocialLoginButtons />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="text-center mt-12 pt-8 border-t border-[#eee]">
+            <p className="text-[#888] text-sm">
+              Don't have an account?{' '}
+              <Link href="/signup" className="text-[#111111] hover:text-[#333] font-bold transition">
+                Sign up
               </Link>
-            </div>
-
-            {/* Log In Button */}
-            <button 
-              type="submit" 
-              className="w-full bg-[#111111] text-white py-3 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors mt-2"
-            >
-              Log in
-            </button>
-          </form>
-
-          {/* Sign Up Link */}
-          <div className="text-center mt-6 text-sm text-gray-500">
-            Don't have an account? <Link href="/signup" className="text-[#111111] font-medium hover:underline">Sign up</Link>
+            </p>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

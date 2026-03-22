@@ -9,33 +9,38 @@ import {
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true })
-  email: string;
+  email!: string;
 
   @Column({ name: 'password_hash' })
-  passwordHash: string;
+  passwordHash!: string;
 
   @Column({ name: 'display_name', type:'varchar', nullable: true })
-  displayName?: string;
+  displayName?: string | null;
 
   @Column({
-    name: 'credit_balance',
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
+    name: 'image_credit_balance',
+    type: 'integer',
     default: 0,
   })
-  creditBalance: number;
+  imageCreditBalance!: number;
+
+  @Column({
+    name: 'song_credit_balance',
+    type: 'integer',
+    default: 0,
+  })
+  songCreditBalance!: number;
 
   @Column({ name: 'is_active', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 

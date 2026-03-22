@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 const NAV_LINKS = [
     {
@@ -20,31 +21,36 @@ const NAV_LINKS = [
         subtext: 'Add a personal message and send it - no customization required.',
         href: '/cards?ready=true',
     },
-    {
-        label: 'My Cards & Songs',
-        subtext: 'Designs and songs are automatically saved for 30 days.',
-        href: '/my-cards',
-    },
 ];
 
 const HAMBURGER_LINKS = [
     { label: 'Home', href: '/' },
-    { label: 'Pricing', href: '/pricing' },
-    { label: 'Currency / Language', href: '#' },
+    { label: 'My Images/Songs', href: '/my-cards' },
+    { label: 'Pricing', href: '/options#pricing' },
     { label: 'FAQ', href: '/faq' },
-    { label: 'Terms of Service', href: '/terms' },
-    { label: 'Privacy Policy', href: '/privacy' },
-    { label: 'Profile', href: '/profile' },
+    { label: 'Profile (Currency/Language)', href: '/profile' },
     { label: 'Contact Us', href: '/contact' },
 ];
 
 export default function Navbar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const { user, logout, loading: authLoading } = useAuth();
     const [hoveredLink, setHoveredLink] = useState<string | null>(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
 
-    if (pathname === '/signup' || pathname === '/login' || pathname === '/forgot-password') {
+    const handleLogout = async () => {
+        try {
+            await logout();
+            setProfileOpen(false);
+            router.push('/login');
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
+    };
+
+    if (pathname === '/signup' || pathname === '/login' || pathname === '/forgot-password' || pathname === '/confirm-signup') {
         return null;
     }
 
@@ -84,52 +90,69 @@ export default function Navbar() {
             <div className="flex items-center gap-4 flex-shrink-0">
                 {/* Credit balances */}
                 <div className="hidden sm:flex items-center gap-3 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1" title="Image Credits">
                         {/* Image credit icon */}
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
                         </svg>
-                        <span>0</span>
+                        <span>{user?.imageCreditBalance ?? 0}</span>
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1" title="Song Credits">
                         {/* Music credit icon */}
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
                         </svg>
-                        <span>0</span>
+                        <span>{user?.songCreditBalance ?? 0}</span>
                     </span>
                 </div>
 
-                {/* Profile icon */}
+                {/* Profile icon / Auth actions */}
                 <div className="relative hidden sm:block">
-                    <button
-                        aria-label="Profile"
-                        onClick={() => setProfileOpen((o) => !o)}
-                        className="hover:text-gray-500 transition-colors"
-                    >
-                        <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                        </svg>
-                    </button>
-                    {profileOpen && (
+                    {user ? (
                         <>
-                            <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
-                            <div className="absolute right-0 top-full mt-3 w-44 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-2">
-                                <Link
-                                    href="/account"
-                                    onClick={() => setProfileOpen(false)}
-                                    className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
-                                >
-                                    Account settings
-                                </Link>
-                                <button
-                                    onClick={() => setProfileOpen(false)}
-                                    className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 transition-colors"
-                                >
-                                    Log Out
-                                </button>
-                            </div>
+                            <button
+                                aria-label="Profile"
+                                onClick={() => setProfileOpen((o) => !o)}
+                                className="flex items-center gap-2 hover:text-gray-500 transition-colors"
+                            >
+                                <div className="text-xs font-medium max-w-[120px] truncate">
+                                    {user.name || user.email.split('@')[0]}
+                                </div>
+                                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                                </svg>
+                            </button>
+                            {profileOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
+                                    <div className="absolute right-0 top-full mt-3 w-44 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-2">
+                                        <Link
+                                            href="/account"
+                                            onClick={() => setProfileOpen(false)}
+                                            className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
+                                        >
+                                            Account settings
+                                        </Link>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 transition-colors"
+                                        >
+                                            Log Out
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <Link href="/login" className="text-sm font-medium hover:text-gray-500 transition-colors">Log in</Link>
+                            <Link 
+                                href="/signup" 
+                                className="bg-[#111111] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
+                            >
+                                Sign up
+                            </Link>
+                        </div>
                     )}
                 </div>
 

@@ -2,40 +2,27 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { signUp } from '@/lib/auth';
+import SocialLoginButtons from '../components/SocialLoginButtons';
 
-function EyeIcon({ open }: { open: boolean }) {
-  if (open) {
-    return (
-      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-    </svg>
-  );
-}
-
-export default function SignUpPage() {
+export default function SignupPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<React.ReactNode>('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    if (error) setError(''); 
+    if (error) setError('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
@@ -47,129 +34,169 @@ export default function SignUpPage() {
       return;
     }
 
-    console.log('Frontend Validation Passed. Ready for AWS backend:', formData);
-     // TODO Task: Connect to AWS Cognito/Backend, we need to get some knowledge about AWS Cognito for Auth. 
+    setIsLoading(true);
+    setError('');
+
+    try {
+      await signUp(formData.email, formData.password, formData.fullName);
+      router.push(`/confirm-signup?email=${encodeURIComponent(formData.email)}`);
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      if (err.name === 'UsernameExistsException') {
+        setError(
+          <span>
+            Username already exists. <Link href="/login" className="underline font-bold">Login instead?</Link>
+          </span>
+        );
+      } else {
+        setError(err.message || 'Failed to sign up. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col font-sans text-[#111111]">
-
-        <header className="flex items-center justify-between px-6 py-4 border-b border-gray-100 text-sm">
-        <div className="font-bold text-lg tracking-tight">
-          <Link href="/">Souvenote</Link>
-        </div>
-      </header>
-      
-      {/* MAIN CONTENT - SIGN UP FORM */}
-      <main className="flex-grow flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-[360px]">
-          <div className="text-center mb-8">
-            <h1 className="text-[28px] font-semibold mb-2">Sign up</h1>
-            <p className="text-gray-500 text-sm">Create your account and start designing</p>
+    <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] to-[#e8e8e8] flex items-center justify-center px-4 py-12 font-sans">
+      <div className="w-full max-w-[820px] bg-white rounded-[18px] shadow-lg overflow-hidden">
+        <div className="p-8 md:p-12">
+          {/* Header */}
+          <div className="text-center mb-10 md:mb-12">
+            <div className="w-12 h-12 bg-[#111111] rounded-lg mx-auto mb-6 flex items-center justify-center text-white font-bold text-xl">
+              SN
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold text-[#1a1a1a] mb-2">Sign up</h1>
+            <p className="text-[#888] text-base md:text-lg">
+              <span className="block">Try it free.</span>
+              <span className="block text-sm md:text-base">Generate one image and one song on us.</span>
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Full Name */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="fullName">Full name</label>
-              <input 
-                type="text" 
-                id="fullName" 
-                name="fullName"
-                placeholder="Enter your full name" 
-                value={formData.fullName}
-                onChange={handleChange}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                required
-              />
-            </div>
+          {/* Main Content */}
+          <div className="flex flex-col md:flex-row gap-8">
+            {/* Left Column - Form */}
+            <div className="flex-1 order-2 md:order-1">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Full Name Field */}
+                <div>
+                  <label htmlFor="fullName" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider mb-2">
+                    Full name
+                  </label>
+                  <input
+                    id="fullName"
+                    name="fullName"
+                    type="text"
+                    placeholder="John Doe"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                  />
+                </div>
 
-            {/* Email Address */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="email">Email address</label>
-              <input 
-                type="email" 
-                id="email" 
-                name="email"
-                placeholder="Enter your email" 
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                required
-              />
-            </div>
+                {/* Email Field */}
+                <div>
+                  <label htmlFor="email" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider mb-2">
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                  />
+                </div>
 
-            {/* Password */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="password">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  name="password"
-                  placeholder="Create a password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                />
+                {/* Password Field */}
+                <div>
+                  <label htmlFor="password" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider mb-2">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                  />
+                </div>
+
+                {/* Confirm Password Field */}
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider mb-2">
+                    Confirm password
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                  />
+                </div>
+
+                {/* Error Message Display */}
+                {error && (
+                  <p className="text-red-500 text-xs font-medium">{error}</p>
+                )}
+
+                {/* Submit Button */}
                 <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full mt-6 py-3 bg-[#111111] text-white font-semibold rounded-[10px] hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <EyeIcon open={showPassword} />
+                  {isLoading ? 'Creating account...' : 'Sign up'}
                 </button>
-              </div>
+
+                {/* Terms */}
+                <p className="text-[10px] md:text-xs text-[#888] text-center mt-4 leading-relaxed">
+                  By signing up, you agree to our{' '}
+                  <Link href="/terms" className="text-[#111111] font-semibold hover:underline">
+                    Terms of Service
+                  </Link>
+                  {' '}and{' '}
+                  <Link href="/privacy" className="text-[#111111] font-semibold hover:underline">
+                    Privacy Policy
+                  </Link>
+                </p>
+              </form>
             </div>
 
-            {/* Confirm Password */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="confirmPassword">Confirm password</label>
-              <div className="relative">
-                <input
-                  type={showConfirm ? 'text' : 'password'}
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  placeholder="Confirm your password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm((v) => !v)}
-                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <EyeIcon open={showConfirm} />
-                </button>
-              </div>
+            {/* Center Divider */}
+            <div className="flex flex-row md:flex-col items-center justify-center gap-3 order-3 md:order-2">
+              <div className="h-px md:w-px w-full md:h-16 bg-[#eee]"></div>
+              <span className="text-[#bbb] text-xs font-bold uppercase px-2">or</span>
+              <div className="h-px md:w-px w-full md:h-16 bg-[#eee]"></div>
             </div>
 
-            {/* Error Message Display */}
-            {error && (
-              <p className="text-red-500 text-xs font-medium">{error}</p>
-            )}
+            {/* Right Column - Social Signup */}
+            <div className="flex-1 order-1 md:order-3 flex flex-col justify-center">
+              <SocialLoginButtons />
+            </div>
+          </div>
 
-            {/* Sign Up Button */}
-            <button 
-              type="submit" 
-              className="w-full bg-[#111111] text-white py-3 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors mt-2"
-            >
-              Sign up
-            </button>
-          </form>
-
-          {/* Login Link */}
-          <div className="text-center mt-6 text-sm text-gray-500">
-            Already have an account? <Link href="/login" className="text-[#111111] font-medium hover:underline">Log in</Link>
+          {/* Footer */}
+          <div className="text-center mt-12 pt-8 border-t border-[#eee]">
+            <p className="text-[#888] text-sm">
+              Already have an account?{' '}
+              <Link href="/login" className="text-[#111111] hover:text-[#333] font-bold transition">
+                Log in
+              </Link>
+            </p>
           </div>
         </div>
-      </main>
-
+      </div>
     </div>
   );
 }
