@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PricingModal from '../PricingModal';
 import { useMusicStore } from '@/stores/music-store';
 
@@ -13,8 +13,13 @@ export default function CreditsCheckModal({ onSkip }: CreditsCheckModalProps) {
   const { songCredits, setStep } = useMusicStore();
 
   // If user somehow got credits (e.g. purchased), continue
+  useEffect(() => {
+    if (songCredits >= 1) {
+      setStep('creation_choice');
+    }
+  }, [songCredits, setStep]);
+
   if (songCredits >= 1) {
-    setStep('creation_choice');
     return null;
   }
 

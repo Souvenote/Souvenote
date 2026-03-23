@@ -1,7 +1,10 @@
 'use client';
 
 import { create } from 'zustand';
-import { musicApi, ApiError } from '@/lib/api';
+import { musicApi, ApiError, type GenerateSongRequest } from '@/lib/api';
+
+let activePollTimer: ReturnType<typeof setTimeout> | null = null;
+let activePollSession = 0;
 
 export type GenerationMethod = 'card_based' | 'guided' | 'manual_prompt';
 export type FlowStep =
@@ -20,6 +23,7 @@ export interface GeneratedSong {
   audioUrl?: string;
   duration?: number;
   prompt: string;
+  engineeredPrompt?: string;
   lyrics?: string;
   style?: string;
   status: string;
@@ -37,6 +41,7 @@ interface MusicState {
   generatedSong: GeneratedSong | null;
   generationMethod: GenerationMethod | null;
   isPolling: boolean;
+  isStartingGeneration: boolean;
 
   // Card context
   cardId: string | null;
@@ -55,13 +60,7 @@ interface MusicState {
   setCredits: (image: number, song: number) => void;
   fetchCredits: () => Promise<void>;
   
-  startGeneration: (params: {
-    prompt: string;
-    lyrics?: string;
-    style?: string;
-    model?: string;
-    generationMethod: GenerationMethod;
-  }) => Promise<void>;
+  startGeneration: (params: GenerateSongRequest) => Promise<void>;
   
   pollStatus: () => Promise<void>;
   stopPolling: () => void;
@@ -75,6 +74,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   generatedSong: null,
   generationMethod: null,
   isPolling: false,
+  isStartingGeneration: false,
   cardId: null,
   cardDesignPrompt: null,
   songCredits: 0,
@@ -99,41 +99,56 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   },
 
   startGeneration: async (params) => {
+    if (get().isStartingGeneration) {
+      return;
+    }
+
+    const generationMethod: GenerationMethod = params.mode === 'guided'
+      ? 'guided'
+      : params.mode === 'card_based'
+        ? 'card_based'
+        : 'manual_prompt';
+    const request = {
+      ...params,
+      cardId: params.cardId ?? get().cardId ?? undefined,
+    } as GenerateSongRequest;
+
     set({
       currentStep: 'generating',
-      generationMethod: params.generationMethod,
+      currentSongId: null,
+      generatedSong: null,
+      generationMethod,
       error: null,
+      isStartingGeneration: true,
     });
 
     try {
-      const song = await musicApi.generateSong({
-        prompt: params.prompt,
-        lyrics: params.lyrics,
-        style: params.style,
-        model: params.model,
-        cardId: get().cardId || undefined,
-        generationMethod: params.generationMethod,
-      });
+      const song = await musicApi.generateSong(request);
+
+      get().stopPolling();
 
       set({
         currentSongId: song.id,
         generatedSong: song,
-        songCredits: get().songCredits - 1,
+        songCredits: Math.max(0, get().songCredits - 1),
+        isStartingGeneration: false,
       });
 
       // Start polling
-      get().pollStatus();
+      void get().pollStatus();
     } catch (err) {
-      const message =
-        err instanceof ApiError && err.data?.error === 'insufficient_credits'
-          ? 'Not enough song credits'
-          : err instanceof Error
+      const isInsufficientCredits =
+        err instanceof ApiError && err.data?.error === 'insufficient_credits';
+      const message = isInsufficientCredits
+        ? 'Not enough song credits'
+        : err instanceof Error
           ? err.message
           : 'Failed to start generation';
 
       set({
-        currentStep: 'failed',
-        error: message,
+        currentStep: isInsufficientCredits ? 'credits_check' : 'failed',
+        error: isInsufficientCredits ? null : message,
+        isStartingGeneration: false,
       });
     }
   },
@@ -142,11 +157,28 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     const songId = get().currentSongId;
     if (!songId || get().isPolling) return;
 
+    activePollSession += 1;
+    const pollSession = activePollSession;
+
+    if (activePollTimer) {
+      clearTimeout(activePollTimer);
+      activePollTimer = null;
+    }
+
     set({ isPolling: true });
 
     const poll = async () => {
       try {
         const song = await musicApi.checkStatus(songId);
+
+        if (
+          pollSession !== activePollSession ||
+          !get().isPolling ||
+          get().currentSongId !== songId
+        ) {
+          return;
+        }
+
         set({ generatedSong: song });
 
         if (song.status === 'completed') {
@@ -165,9 +197,19 @@ export const useMusicStore = create<MusicState>((set, get) => ({
 
         // Still generating - poll again in 4 seconds
         if (get().isPolling) {
-          setTimeout(poll, 4000);
+          activePollTimer = setTimeout(() => {
+            void poll();
+          }, 4000);
         }
       } catch {
+        if (
+          pollSession !== activePollSession ||
+          !get().isPolling ||
+          get().currentSongId !== songId
+        ) {
+          return;
+        }
+
         set({
           currentStep: 'failed',
           isPolling: false,
@@ -176,10 +218,19 @@ export const useMusicStore = create<MusicState>((set, get) => ({
       }
     };
 
-    poll();
+    await poll();
   },
 
-  stopPolling: () => set({ isPolling: false }),
+  stopPolling: () => {
+    activePollSession += 1;
+
+    if (activePollTimer) {
+      clearTimeout(activePollTimer);
+      activePollTimer = null;
+    }
+
+    set({ isPolling: false });
+  },
 
   linkSongToCard: async (cardId) => {
     const songId = get().currentSongId;
@@ -194,13 +245,18 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     }
   },
 
-  resetFlow: () =>
+  resetFlow: () => {
+    get().stopPolling();
     set({
       currentStep: 'initial',
       currentSongId: null,
       generatedSong: null,
       generationMethod: null,
       isPolling: false,
+      isStartingGeneration: false,
+      cardId: null,
+      cardDesignPrompt: null,
       error: null,
-    }),
+    });
+  },
 }));

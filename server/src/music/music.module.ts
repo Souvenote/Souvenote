@@ -8,15 +8,18 @@ import { GreetingCard } from '../entities/greeting-card.entity';
 import { CreditTransaction } from '../entities/credit-transaction.entity';
 import { MurekaModule } from '../mureka/mureka.module';
 import { AuthModule } from '../auth/auth.module';
+import { OpenAiModule } from '../openai/openai.module';
+import { PromptEngineeringService } from './prompt-engineering.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Song, User, GreetingCard, CreditTransaction]),
     MurekaModule,
     AuthModule,
+    OpenAiModule,
   ],
   controllers: [MusicController],
-  providers: [MusicService],
+  providers: [MusicService, PromptEngineeringService],
   exports: [MusicService],
 })
 export class MusicModule {}

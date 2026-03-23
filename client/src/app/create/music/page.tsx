@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMusicStore } from '@/stores/music-store';
 import AddSongModal from '@/app/components/music/AddSongModal';
@@ -14,43 +14,43 @@ import PostGenerationModal from '@/app/components/music/PostGenerationModal';
 function MusicGenerationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const routeContextKey = searchParams.toString();
+  const cardId = searchParams.get('cardId');
+  const designPrompt = searchParams.get('designPrompt');
+  const [initializedRouteKey, setInitializedRouteKey] = useState<string | null>(null);
   const {
     currentStep,
     error,
     setCardContext,
     fetchCredits,
     setStep,
+    resetFlow,
   } = useMusicStore();
 
-  // Read card context from URL params (passed from image generation flow)
+  const isRouteReady = initializedRouteKey === routeContextKey;
+
   useEffect(() => {
-    const cardId = searchParams.get('cardId');
-    const designPrompt = searchParams.get('designPrompt');
+    resetFlow();
     setCardContext(cardId, designPrompt);
-    fetchCredits();
+    setInitializedRouteKey(routeContextKey);
+    void fetchCredits();
 
     return () => {
       useMusicStore.getState().stopPolling();
     };
-  }, [searchParams, setCardContext, fetchCredits]);
+  }, [cardId, designPrompt, routeContextKey, resetFlow, setCardContext, fetchCredits]);
 
   const handleSkip = () => {
-    const cardId = searchParams.get('cardId');
-    if (cardId) {
-      router.push(`/create/delivery?cardId=${cardId}`);
-    } else {
-      router.push('/options');
-    }
+    router.push('/options');
   };
 
   const handleUseSong = () => {
-    const cardId = searchParams.get('cardId');
-    if (cardId) {
-      router.push(`/create/delivery?cardId=${cardId}`);
-    } else {
-      router.push('/options');
-    }
+    router.push('/options');
   };
+
+  if (!isRouteReady) {
+    return null;
+  }
 
   return (
     <>

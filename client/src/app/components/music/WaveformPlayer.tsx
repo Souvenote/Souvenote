@@ -1,212 +1,169 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
-import WaveSurfer from 'wavesurfer.js';
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { musicApi } from '@/lib/api';
 
 interface WaveformPlayerProps {
-  audioUrl: string;
+  songId: string;
   title?: string;
 }
 
-export default function WaveformPlayer({ audioUrl, title }: WaveformPlayerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+function formatTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return '0:00';
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+export default function WaveformPlayer({ songId, title }: WaveformPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const objectUrlRef = useRef<string | null>(null);
+  const isCleaningUpRef = useRef(false);
+  const [resolvedAudioUrl, setResolvedAudioUrl] = useState<string | null>(null);
+  const [isLoadingSource, setIsLoadingSource] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isReady, setIsReady] = useState(false);
-  const [useNativePlayer, setUseNativePlayer] = useState(false);
   const [playerMessage, setPlayerMessage] = useState<string | null>(null);
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
+  const detachAudioElement = useCallback(() => {
+    const audio = audioRef.current;
 
-  const initWaveSurfer = useCallback(() => {
-    if (!containerRef.current || wavesurferRef.current || useNativePlayer) return;
+    if (!audio) {
+      return;
+    }
 
-    let isCleaningUp = false;
+    try {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+    } catch {
+      // Ignore cleanup issues while tearing down the player.
+    }
+  }, []);
 
-    const ws = WaveSurfer.create({
-      container: containerRef.current,
-      waveColor: '#d1d5db',
-      progressColor: '#111111',
-      cursorColor: '#111111',
-      barWidth: 3,
-      barGap: 2,
-      barRadius: 3,
-      height: 60,
-      normalize: true,
-    });
+  const revokeObjectUrl = useCallback(() => {
+    const currentUrl = objectUrlRef.current;
 
-    const enableNativeFallback = (message: string) => {
-      if (isCleaningUp) {
-        return;
-      }
+    if (!currentUrl) {
+      return;
+    }
 
-      setUseNativePlayer(true);
-      setIsReady(true);
-      setPlayerMessage(message);
+    objectUrlRef.current = null;
+    window.setTimeout(() => {
+      URL.revokeObjectURL(currentUrl);
+    }, 0);
+  }, []);
 
+  useEffect(() => {
+    let isCancelled = false;
+    isCleaningUpRef.current = false;
+
+    detachAudioElement();
+    revokeObjectUrl();
+    setResolvedAudioUrl(null);
+    setIsLoadingSource(true);
+    setCurrentTime(0);
+    setDuration(0);
+    setPlayerMessage(null);
+
+    const loadAudio = async () => {
       try {
-        ws.destroy();
-      } catch {
-        // Ignore teardown issues while switching player modes.
+        const audioBlob = await musicApi.getSongAudio(songId);
+
+        if (isCancelled) {
+          return;
+        }
+
+        const nextObjectUrl = URL.createObjectURL(audioBlob);
+        objectUrlRef.current = nextObjectUrl;
+        setResolvedAudioUrl(nextObjectUrl);
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        setPlayerMessage(
+          error instanceof Error
+            ? error.message
+            : 'We could not load this song right now. Please try again.',
+        );
       } finally {
-        if (wavesurferRef.current === ws) {
-          wavesurferRef.current = null;
+        if (!isCancelled) {
+          setIsLoadingSource(false);
         }
       }
     };
 
-    ws.on('ready', () => {
-      setDuration(ws.getDuration());
-      setIsReady(true);
-      setPlayerMessage(null);
-    });
-
-    ws.on('timeupdate', (time) => setCurrentTime(time));
-
-    ws.on('play', () => setIsPlaying(true));
-    ws.on('pause', () => setIsPlaying(false));
-    ws.on('finish', () => setIsPlaying(false));
-    ws.on('error', (error) => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      if (errorMessage.includes('AbortError') || isCleaningUp) {
-        return;
-      }
-
-      enableNativeFallback('Waveform preview is unavailable for this audio. Using the standard player instead.');
-    });
-
-    wavesurferRef.current = ws;
-
-    ws.load(audioUrl).catch((error) => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      if (errorMessage.includes('AbortError') || isCleaningUp) {
-        return;
-      }
-
-      enableNativeFallback('Waveform preview is unavailable for this audio. Using the standard player instead.');
-    });
+    void loadAudio();
 
     return () => {
-      isCleaningUp = true;
+      isCancelled = true;
+      isCleaningUpRef.current = true;
+      detachAudioElement();
+      revokeObjectUrl();
     };
-  }, [audioUrl, useNativePlayer]);
+  }, [detachAudioElement, revokeObjectUrl, songId]);
 
-  useEffect(() => {
-    const cleanup = initWaveSurfer();
+  const handleLoadedMetadata = () => {
+    const audio = audioRef.current;
 
-    return () => {
-      cleanup?.();
-
-      try {
-        wavesurferRef.current?.destroy();
-      } catch {
-        // WaveSurfer may abort an in-flight fetch while unmounting.
-      }
-
-      wavesurferRef.current = null;
-    };
-  }, [initWaveSurfer]);
-
-  const togglePlay = () => {
-    if (useNativePlayer) {
-      const audio = audioRef.current;
-      if (!audio) return;
-
-      if (audio.paused) {
-        void audio.play();
-      } else {
-        audio.pause();
-      }
-
+    if (!audio) {
       return;
     }
 
-    wavesurferRef.current?.playPause();
+    setDuration(audio.duration || 0);
+    setPlayerMessage(null);
   };
 
-  const handleNativeTimeUpdate = () => {
+  const handleTimeUpdate = () => {
     const audio = audioRef.current;
-    if (!audio) return;
+
+    if (!audio) {
+      return;
+    }
 
     setCurrentTime(audio.currentTime);
   };
 
-  const handleNativeMetadata = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
+  const handleError = (event: SyntheticEvent<HTMLAudioElement, Event>) => {
+    event.preventDefault();
+    event.stopPropagation();
 
-    setDuration(audio.duration || 0);
-    setIsReady(true);
+    if (isCleaningUpRef.current) {
+      return;
+    }
+
+    setPlayerMessage('This audio source is unavailable or unsupported in your browser.');
   };
 
-  const handleNativePlay = () => setIsPlaying(true);
-  const handleNativePause = () => setIsPlaying(false);
-
   return (
-    <div className="bg-gray-50 rounded-xl p-5">
-      {title && (
-        <p className="text-sm font-semibold text-gray-700 mb-3">{title}</p>
-      )}
+    <div className="rounded-xl bg-gray-50 p-5">
+      {title && <p className="mb-3 text-sm font-semibold text-gray-700">{title}</p>}
 
-      <div className="flex items-center gap-4">
-        {/* Play/Pause button */}
-        <button
-          onClick={togglePlay}
-          disabled={!isReady}
-          className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-colors cursor-pointer ${
-            isReady
-              ? 'bg-[#111111] text-white hover:bg-[#333]'
-              : 'bg-gray-200 text-gray-400'
-          }`}
-        >
-          {isPlaying ? (
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <rect x="6" y="4" width="4" height="16" rx="1" />
-              <rect x="14" y="4" width="4" height="16" rx="1" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          )}
-        </button>
+      <div className="min-w-0">
+        <audio
+          ref={audioRef}
+          src={resolvedAudioUrl || undefined}
+          controls
+          preload="metadata"
+          onLoadedMetadata={handleLoadedMetadata}
+          onTimeUpdate={handleTimeUpdate}
+          onErrorCapture={handleError}
+          onError={handleError}
+          className="w-full"
+        />
 
-        {/* Waveform */}
-        <div className="flex-1 min-w-0">
-          {useNativePlayer ? (
-            <div className="space-y-3">
-              <audio
-                ref={audioRef}
-                src={audioUrl}
-                controls
-                preload="metadata"
-                onLoadedMetadata={handleNativeMetadata}
-                onTimeUpdate={handleNativeTimeUpdate}
-                onPlay={handleNativePlay}
-                onPause={handleNativePause}
-                className="w-full"
-              />
-              {playerMessage && (
-                <p className="text-xs text-gray-400">{playerMessage}</p>
-              )}
-            </div>
-          ) : (
-            <div ref={containerRef} className="w-full" />
-          )}
-        </div>
+        {isLoadingSource && <p className="mt-2 text-xs text-gray-400">Loading song...</p>}
+        {!isLoadingSource && playerMessage && (
+          <p className="mt-2 text-xs text-gray-400">{playerMessage}</p>
+        )}
       </div>
 
-      {/* Time display */}
-      <div className="flex justify-between mt-2 text-xs text-gray-400">
+      <div className="mt-2 flex justify-between text-xs text-gray-400">
         <span>{formatTime(currentTime)}</span>
         <span>{formatTime(duration)}</span>
       </div>

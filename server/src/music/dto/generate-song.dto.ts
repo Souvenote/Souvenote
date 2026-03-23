@@ -1,9 +1,49 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
-import { GenerationMethod } from '../../entities/song.entity';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 
 export class GenerateSongDto {
   @IsString()
-  prompt: string;
+  @IsIn(['guided', 'card_based', 'custom'])
+  mode: 'guided' | 'card_based' | 'custom';
+
+  @IsOptional()
+  @IsString()
+  occasion?: string;
+
+  @IsOptional()
+  @IsString()
+  mood?: string;
+
+  @IsOptional()
+  @IsString()
+  genre?: string;
+
+  @IsOptional()
+  @IsString()
+  tempo?: string;
+
+  @IsOptional()
+  @IsString()
+  vocal?: string;
+
+  @IsOptional()
+  @IsString()
+  instrumentation?: string;
+
+  @IsOptional()
+  @IsString()
+  recipientName?: string;
+
+  @IsOptional()
+  @IsString()
+  personalMessage?: string;
+
+  @IsOptional()
+  @IsString()
+  lyricalTheme?: string;
+
+  @IsOptional()
+  @IsString()
+  additionalContext?: string;
 
   @IsOptional()
   @IsString()
@@ -22,6 +62,10 @@ export class GenerateSongDto {
   cardId?: string;
 
   @IsOptional()
-  @IsEnum(GenerationMethod)
-  generationMethod?: GenerationMethod;
+  @IsString()
+  designPrompt?: string;
+
+  @IsOptional()
+  @IsString()
+  prompt?: string;
 }

@@ -8,21 +8,8 @@ interface ApiOptions {
   headers?: Record<string, string>;
 }
 
-class ApiError extends Error {
-  status: number;
-  data: any;
-
-  constructor(message: string, status: number, data?: any) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.data = data;
-  }
-}
-
-async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+async function buildRequestConfig(options: ApiOptions = {}): Promise<RequestInit> {
   const { method = 'GET', body, headers = {} } = options;
-
   const token = await getAccessToken();
 
   const config: RequestInit = {
@@ -38,21 +25,89 @@ async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T
     config.body = JSON.stringify(body);
   }
 
+  return config;
+}
+
+async function parseApiError(response: Response): Promise<never> {
+  const contentType = response.headers.get('content-type') || '';
+  let errorData: any;
+
+  try {
+    errorData = contentType.includes('application/json')
+      ? await response.json()
+      : { message: await response.text() };
+  } catch {
+    errorData = { message: response.statusText };
+  }
+
+  throw new ApiError(
+    errorData.message || `Request failed: ${response.statusText}`,
+    response.status,
+    errorData,
+  );
+}
+
+export interface GuidedSongRequest {
+  mode: 'guided';
+  occasion: string;
+  mood: string;
+  genre: string;
+  tempo?: string;
+  vocal?: string;
+  instrumentation?: string;
+  recipientName?: string;
+  personalMessage?: string;
+  lyricalTheme?: string;
+  additionalContext?: string;
+  cardId?: string;
+  model?: string;
+}
+
+export interface CardBasedSongRequest {
+  mode: 'card_based';
+  designPrompt: string;
+  cardId?: string;
+  model?: string;
+}
+
+export interface CustomSongRequest {
+  mode: 'custom';
+  prompt: string;
+  lyrics?: string;
+  style?: string;
+  model?: string;
+  cardId?: string;
+}
+
+export type GenerateSongRequest =
+  | GuidedSongRequest
+  | CardBasedSongRequest
+  | CustomSongRequest;
+
+export interface EnhancePromptResponse {
+  enhancedPrompt: string;
+  changes: string[];
+}
+
+class ApiError extends Error {
+  status: number;
+  data: any;
+
+  constructor(message: string, status: number, data?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
+async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+  const config = await buildRequestConfig(options);
+
   const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
   if (!response.ok) {
-    let errorData;
-    try {
-      errorData = await response.json();
-    } catch {
-      errorData = { message: response.statusText };
-    }
-
-    throw new ApiError(
-      errorData.message || `Request failed: ${response.statusText}`,
-      response.status,
-      errorData,
-    );
+    return parseApiError(response);
   }
 
   // Handle 204 No Content
@@ -63,16 +118,21 @@ async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T
   return response.json();
 }
 
+async function requestBlob(endpoint: string, options: ApiOptions = {}): Promise<Blob> {
+  const config = await buildRequestConfig(options);
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+  if (!response.ok) {
+    return parseApiError(response);
+  }
+
+  return response.blob();
+}
+
 // Music API
 export const musicApi = {
-  generateSong: (data: {
-    prompt: string;
-    lyrics?: string;
-    style?: string;
-    model?: string;
-    cardId?: string;
-    generationMethod?: string;
-  }) => request<any>('/music/generate', { method: 'POST', body: data }),
+  generateSong: (data: GenerateSongRequest) =>
+    request<any>('/music/generate', { method: 'POST', body: data }),
 
   checkStatus: (songId: string) =>
     request<any>(`/music/status/${songId}`),
@@ -80,10 +140,21 @@ export const musicApi = {
   generateLyrics: (prompt: string) =>
     request<any>('/music/generate-lyrics', { method: 'POST', body: { prompt } }),
 
+  enhancePrompt: (prompt: string) =>
+    request<EnhancePromptResponse>('/music/enhance-prompt', {
+      method: 'POST',
+      body: { prompt },
+    }),
+
   linkSongToCard: (songId: string, cardId: string) =>
     request<any>(`/music/link/${songId}`, { method: 'POST', body: { cardId } }),
 
   getMySongs: () => request<any[]>('/music/my-songs'),
+
+  getSongAudio: (songId: string) => requestBlob(`/music/audio/${songId}`),
+
+  renameSong: (songId: string, title: string) =>
+    request<any>(`/music/${songId}`, { method: 'PATCH', body: { title } }),
 
   getCredits: () =>
     request<{ image: number; song: number }>('/music/credits'),

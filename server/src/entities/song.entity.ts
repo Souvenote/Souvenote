@@ -46,6 +46,9 @@ export class Song {
   @Column({ type: 'text' })
   prompt: string;
 
+  @Column({ name: 'engineered_prompt', type: 'text', nullable: true })
+  engineeredPrompt?: string;
+
   @Column({ type: 'text', nullable: true })
   lyrics?: string;
 

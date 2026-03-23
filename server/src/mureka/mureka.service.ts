@@ -18,11 +18,13 @@ export interface MurekaSongQueryResponse {
   trace_id: string;
   title?: string;
   audio_url?: string;
+  wav_url?: string;
   video_url?: string;
   duration?: number;
   choice?: {
     id: string;
     audio_url: string;
+    wav_url?: string;
     video_url?: string;
     duration: number;
     title?: string;
@@ -33,6 +35,7 @@ export interface MurekaSongQueryResponse {
     url?: string;
     flac_url?: string;
     audio_url?: string;
+    wav_url?: string;
     video_url?: string;
     duration?: number;
   }[];
@@ -46,6 +49,12 @@ export interface MurekaLyricsResponse {
 export interface MurekaBillingResponse {
   balance: number;
   currency: string;
+}
+
+export interface GenerateMurekaSongParams {
+  prompt: string;
+  lyrics?: string;
+  model?: string;
 }
 
 @Injectable()
@@ -68,15 +77,15 @@ export class MurekaService {
     };
   }
 
-  async generateSong(
-    prompt: string,
-    lyrics?: string,
-    model: string = 'auto',
-  ): Promise<MurekaTaskResponse> {
-    this.logger.log(`Submitting song generation: prompt="${prompt}", model=${model}`);
+  async generateSong({
+    prompt,
+    lyrics,
+    model = 'auto',
+  }: GenerateMurekaSongParams): Promise<MurekaTaskResponse> {
+    this.logger.log(`Submitting song generation: model=${model}`);
 
     const body: Record<string, any> = { prompt, model };
-    if (lyrics) {
+    if (lyrics?.trim()) {
       body.lyrics = lyrics;
     }
 
@@ -126,7 +135,7 @@ export class MurekaService {
   }
 
   async generateLyrics(prompt: string): Promise<MurekaLyricsResponse> {
-    this.logger.log(`Generating lyrics: prompt="${prompt}"`);
+    this.logger.log(`Generating lyrics: promptLength=${prompt.trim().length}`);
 
     const response = await fetch(`${this.apiBaseUrl}/v1/lyrics/generate`, {
       method: 'POST',

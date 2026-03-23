@@ -8,7 +8,7 @@ interface PostGenerationModalProps {
 }
 
 export default function PostGenerationModal({ onUseSong }: PostGenerationModalProps) {
-  const { generatedSong, resetFlow, setStep, cardId, linkSongToCard } = useMusicStore();
+  const { generatedSong, setStep, cardId, linkSongToCard, error } = useMusicStore();
 
   if (!generatedSong) return null;
 
@@ -17,9 +17,10 @@ export default function PostGenerationModal({ onUseSong }: PostGenerationModalPr
       try {
         await linkSongToCard(cardId);
       } catch {
-        // Error is set in store, but still proceed
+        return;
       }
     }
+
     onUseSong();
   };
 
@@ -43,10 +44,10 @@ export default function PostGenerationModal({ onUseSong }: PostGenerationModalPr
         </div>
 
         {/* Audio player */}
-        {generatedSong.audioUrl && (
+        {generatedSong.status === 'completed' && (
           <div className="mb-6">
             <WaveformPlayer
-              audioUrl={generatedSong.audioUrl}
+              songId={generatedSong.id}
               title={generatedSong.title}
             />
           </div>
@@ -69,6 +70,11 @@ export default function PostGenerationModal({ onUseSong }: PostGenerationModalPr
 
         {/* Actions */}
         <div className="space-y-3">
+          {error && (
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+              {error}
+            </p>
+          )}
           <button
             onClick={handleUseSong}
             className="w-full py-3.5 rounded-xl bg-[#111111] text-white font-semibold hover:bg-[#333] transition-colors cursor-pointer"
