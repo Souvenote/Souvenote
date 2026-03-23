@@ -14,13 +14,6 @@ import { User } from '../entities/user.entity';
 const STARTER_IMAGE_CREDITS = 25;
 const STARTER_SONG_CREDITS = 100;
 
-export interface CognitoPayload {
-  sub: string;
-  email?: string;
-  'cognito:username': string;
-  token_use: string;
-}
-
 @Injectable()
 export class CognitoAuthGuard implements CanActivate {
   private verifier?: ReturnType<typeof CognitoJwtVerifier.create>;
@@ -94,7 +87,6 @@ export class CognitoAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-
     const authHeader = request.headers.authorization;
 
     if (!authHeader?.startsWith('Bearer ')) {
@@ -104,8 +96,7 @@ export class CognitoAuthGuard implements CanActivate {
     const token = authHeader.split(' ')[1];
 
     try {
-      const verifier = this.getVerifier();
-      const payload = await verifier.verify(token);
+      const payload = await this.getVerifier().verify(token);
       const username = String(payload['cognito:username']);
       const email = String(payload['email'] ?? username);
 
@@ -116,6 +107,7 @@ export class CognitoAuthGuard implements CanActivate {
         email,
         username,
       };
+
       return true;
     } catch (error) {
       if (error instanceof InternalServerErrorException) {

@@ -15,8 +15,8 @@ export class UsersController {
 
   @UseGuards(CognitoAuthGuard)
   @Get('me')
-  async getMe(@CurrentUser('sub') cognitoSub: string) {
-    return await this.usersService.findOne(cognitoSub);
+  async getMe(@CurrentUser() user: any) {
+    return await this.usersService.ensureUser(user.sub, user.email);
   }
 
   @Get()

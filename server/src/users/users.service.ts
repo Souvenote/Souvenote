@@ -10,13 +10,30 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ) {}
 
-  async create(userData: Partial<User>): Promise<User> {
-    const user = this.usersRepository.create(userData);
-    return await this.usersRepository.save(user);
-  }
-
   async findOne(id: string): Promise<User | null> {
     return await this.usersRepository.findOne({ where: { id } });
+  }
+
+  async ensureUser(id: string, email: string): Promise<User> {
+    const existingUser = await this.findOne(id);
+    if (existingUser) {
+      return existingUser;
+    }
+    
+    return await this.create({
+      id,
+      email,
+      isActive: true,
+    });
+  }
+
+  async create(userData: Partial<User>): Promise<User> {
+    const user = this.usersRepository.create({
+      ...userData,
+      imageCreditBalance: 1,
+      songCreditBalance: 1,
+    });
+    return await this.usersRepository.save(user);
   }
 
   async findByEmail(email: string): Promise<User | null> {
