@@ -3,7 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signUp } from '@/lib/auth';
+import {
+  signUp,
+  isAuthConfigured,
+  getAuthConfigErrorMessage,
+  getAuthErrorMessage,
+} from '@/lib/auth';
 import SocialLoginButtons from '../components/SocialLoginButtons';
 
 export default function SignupPage() {
@@ -15,7 +20,7 @@ export default function SignupPage() {
     confirmPassword: '',
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<React.ReactNode>('');
+  const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -24,13 +29,19 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
+
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (!isAuthConfigured()) {
+      setError(getAuthConfigErrorMessage());
       return;
     }
 
@@ -38,19 +49,16 @@ export default function SignupPage() {
     setError('');
 
     try {
-      await signUp(formData.email, formData.password, formData.fullName);
-      router.push(`/confirm-signup?email=${encodeURIComponent(formData.email)}`);
-    } catch (err: any) {
-      console.error('Signup error:', err);
-      if (err.name === 'UsernameExistsException') {
-        setError(
-          <span>
-            Username already exists. <Link href="/login" className="underline font-bold">Login instead?</Link>
-          </span>
-        );
-      } else {
-        setError(err.message || 'Failed to sign up. Please try again.');
+      const result = await signUp(formData.email, formData.password, formData.fullName);
+
+      if (result.nextStep.signUpStep === 'CONFIRM_SIGN_UP') {
+        router.push(`/confirm-signup?email=${encodeURIComponent(formData.email)}`);
+        return;
       }
+
+      router.push('/login');
+    } catch (signupError) {
+      setError(getAuthErrorMessage(signupError));
     } finally {
       setIsLoading(false);
     }
@@ -58,28 +66,24 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] to-[#e8e8e8] flex items-center justify-center px-4 py-12 font-sans">
-      <div className="w-full max-w-[820px] bg-white rounded-[18px] shadow-lg overflow-hidden">
+      <div className="w-full max-w-[820px] overflow-hidden rounded-[18px] bg-white shadow-lg">
         <div className="p-8 md:p-12">
-          {/* Header */}
-          <div className="text-center mb-10 md:mb-12">
-            <div className="w-12 h-12 bg-[#111111] rounded-lg mx-auto mb-6 flex items-center justify-center text-white font-bold text-xl">
+          <div className="mb-10 text-center md:mb-12">
+            <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-lg bg-[#111111] text-xl font-bold text-white">
               SN
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-[#1a1a1a] mb-2">Sign up</h1>
-            <p className="text-[#888] text-base md:text-lg">
+            <h1 className="mb-2 text-3xl font-bold text-[#1a1a1a] md:text-4xl">Sign up</h1>
+            <p className="text-base text-[#888] md:text-lg">
               <span className="block">Try it free.</span>
               <span className="block text-sm md:text-base">Generate one image and one song on us.</span>
             </p>
           </div>
 
-          {/* Main Content */}
-          <div className="flex flex-col md:flex-row gap-8">
-            {/* Left Column - Form */}
-            <div className="flex-1 order-2 md:order-1">
+          <div className="flex flex-col gap-8 md:flex-row">
+            <div className="order-2 flex-1 md:order-1">
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Full Name Field */}
                 <div>
-                  <label htmlFor="fullName" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider mb-2">
+                  <label htmlFor="fullName" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#111111]">
                     Full name
                   </label>
                   <input
@@ -90,13 +94,12 @@ export default function SignupPage() {
                     value={formData.fullName}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                    className="w-full rounded-[10px] border border-[#ddd] px-4 py-3 text-[#1a1a1a] placeholder-[#bbb] transition focus:border-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
                   />
                 </div>
 
-                {/* Email Field */}
                 <div>
-                  <label htmlFor="email" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider mb-2">
+                  <label htmlFor="email" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#111111]">
                     Email address
                   </label>
                   <input
@@ -107,13 +110,12 @@ export default function SignupPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                    className="w-full rounded-[10px] border border-[#ddd] px-4 py-3 text-[#1a1a1a] placeholder-[#bbb] transition focus:border-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
                   />
                 </div>
 
-                {/* Password Field */}
                 <div>
-                  <label htmlFor="password" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider mb-2">
+                  <label htmlFor="password" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#111111]">
                     Password
                   </label>
                   <input
@@ -124,13 +126,12 @@ export default function SignupPage() {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                    className="w-full rounded-[10px] border border-[#ddd] px-4 py-3 text-[#1a1a1a] placeholder-[#bbb] transition focus:border-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
                   />
                 </div>
 
-                {/* Confirm Password Field */}
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider mb-2">
+                  <label htmlFor="confirmPassword" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#111111]">
                     Confirm password
                   </label>
                   <input
@@ -141,56 +142,48 @@ export default function SignupPage() {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                    className="w-full rounded-[10px] border border-[#ddd] px-4 py-3 text-[#1a1a1a] placeholder-[#bbb] transition focus:border-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
                   />
                 </div>
 
-                {/* Error Message Display */}
-                {error && (
-                  <p className="text-red-500 text-xs font-medium">{error}</p>
-                )}
+                {error && <p className="text-xs font-medium text-red-500">{error}</p>}
 
-                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full mt-6 py-3 bg-[#111111] text-white font-semibold rounded-[10px] hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-6 w-full rounded-[10px] bg-[#111111] py-3 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isLoading ? 'Creating account...' : 'Sign up'}
                 </button>
 
-                {/* Terms */}
-                <p className="text-[10px] md:text-xs text-[#888] text-center mt-4 leading-relaxed">
+                <p className="mt-4 text-center text-[10px] leading-relaxed text-[#888] md:text-xs">
                   By signing up, you agree to our{' '}
-                  <Link href="/terms" className="text-[#111111] font-semibold hover:underline">
+                  <Link href="/terms" className="font-semibold text-[#111111] hover:underline">
                     Terms of Service
-                  </Link>
-                  {' '}and{' '}
-                  <Link href="/privacy" className="text-[#111111] font-semibold hover:underline">
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/privacy" className="font-semibold text-[#111111] hover:underline">
                     Privacy Policy
                   </Link>
                 </p>
               </form>
             </div>
 
-            {/* Center Divider */}
-            <div className="flex flex-row md:flex-col items-center justify-center gap-3 order-3 md:order-2">
-              <div className="h-px md:w-px w-full md:h-16 bg-[#eee]"></div>
-              <span className="text-[#bbb] text-xs font-bold uppercase px-2">or</span>
-              <div className="h-px md:w-px w-full md:h-16 bg-[#eee]"></div>
+            <div className="order-3 flex flex-row items-center justify-center gap-3 md:order-2 md:flex-col">
+              <div className="h-px w-full bg-[#eee] md:h-16 md:w-px"></div>
+              <span className="px-2 text-xs font-bold uppercase text-[#bbb]">or</span>
+              <div className="h-px w-full bg-[#eee] md:h-16 md:w-px"></div>
             </div>
 
-            {/* Right Column - Social Signup */}
-            <div className="flex-1 order-1 md:order-3 flex flex-col justify-center">
+            <div className="order-1 flex flex-1 flex-col justify-center md:order-3">
               <SocialLoginButtons />
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="text-center mt-12 pt-8 border-t border-[#eee]">
-            <p className="text-[#888] text-sm">
+          <div className="mt-12 border-t border-[#eee] pt-8 text-center">
+            <p className="text-sm text-[#888]">
               Already have an account?{' '}
-              <Link href="/login" className="text-[#111111] hover:text-[#333] font-bold transition">
+              <Link href="/login" className="font-bold text-[#111111] transition hover:text-[#333]">
                 Log in
               </Link>
             </p>

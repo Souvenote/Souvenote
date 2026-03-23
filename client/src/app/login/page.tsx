@@ -3,7 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signIn } from '@/lib/auth';
+import {
+  signIn,
+  isAuthConfigured,
+  getAuthConfigErrorMessage,
+  getAuthErrorMessage,
+} from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';
 import SocialLoginButtons from '../components/SocialLoginButtons';
 
@@ -16,6 +21,7 @@ function EyeIcon({ open }: { open: boolean }) {
       </svg>
     );
   }
+
   return (
     <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
@@ -32,35 +38,50 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (error) setError('');
+    if (info) setInfo('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (user) {
       router.push('/options');
       return;
     }
 
+    if (!isAuthConfigured()) {
+      setError(getAuthConfigErrorMessage());
+      return;
+    }
+
     setLoading(true);
     setError('');
+    setInfo('');
 
     try {
-      await signIn(formData.email, formData.password);
-      await refreshUser();
-      router.push('/options');
-    } catch (err: any) {
-      if (err.name === 'UserAlreadyAuthenticatedException') {
+      const result = await signIn(formData.email, formData.password);
+
+      if (result.isSignedIn) {
+        await refreshUser();
         router.push('/options');
-      } else {
-        console.error('Login error:', err);
-        setError(err.message || 'Failed to log in. Please check your credentials.');
+        router.refresh();
+        return;
       }
+
+      if (result.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
+        router.push(`/confirm-signup?email=${encodeURIComponent(formData.email)}`);
+        return;
+      }
+
+      setInfo('Additional sign-in steps are required in Cognito before this account can continue.');
+    } catch (loginError) {
+      setError(getAuthErrorMessage(loginError));
     } finally {
       setLoading(false);
     }
@@ -68,27 +89,23 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] to-[#e8e8e8] flex items-center justify-center px-4 py-12 font-sans">
-      <div className="w-full max-w-[820px] bg-white rounded-[18px] shadow-lg overflow-hidden">
+      <div className="w-full max-w-[820px] overflow-hidden rounded-[18px] bg-white shadow-lg">
         <div className="p-8 md:p-12">
-          {/* Header */}
-          <div className="text-center mb-10 md:mb-12">
-            <div className="w-12 h-12 bg-[#111111] rounded-lg mx-auto mb-6 flex items-center justify-center text-white font-bold text-xl">
+          <div className="mb-10 text-center md:mb-12">
+            <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-lg bg-[#111111] text-xl font-bold text-white">
               SN
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-[#1a1a1a] mb-2">Log in</h1>
-            <p className="text-[#888] text-base md:text-lg">
+            <h1 className="mb-2 text-3xl font-bold text-[#1a1a1a] md:text-4xl">Log in</h1>
+            <p className="text-base text-[#888] md:text-lg">
               Access your cards and continue creating
             </p>
           </div>
 
-          {/* Main Content */}
-          <div className="flex flex-col md:flex-row gap-8">
-            {/* Left Column - Form */}
-            <div className="flex-1 order-2 md:order-1">
+          <div className="flex flex-col gap-8 md:flex-row">
+            <div className="order-2 flex-1 md:order-1">
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Email Field */}
                 <div>
-                  <label htmlFor="email" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider mb-2">
+                  <label htmlFor="email" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#111111]">
                     Email address
                   </label>
                   <input
@@ -99,14 +116,13 @@ export default function LoginPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                    className="w-full rounded-[10px] border border-[#ddd] px-4 py-3 text-[#1a1a1a] placeholder-[#bbb] transition focus:border-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
                   />
                 </div>
 
-                {/* Password Field */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label htmlFor="password" className="block text-xs font-semibold text-[#111111] uppercase tracking-wider">
+                  <div className="mb-2 flex items-center justify-between">
+                    <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-[#111111]">
                       Password
                     </label>
                     <Link href="/forgot-password" className="text-xs font-semibold text-[#888] hover:text-[#111111]">
@@ -122,52 +138,46 @@ export default function LoginPage() {
                       value={formData.password}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-3 border border-[#ddd] rounded-[10px] text-[#1a1a1a] placeholder-[#bbb] focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition"
+                      className="w-full rounded-[10px] border border-[#ddd] px-4 py-3 text-[#1a1a1a] placeholder-[#bbb] transition focus:border-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      onClick={() => setShowPassword((open) => !open)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
                     >
                       <EyeIcon open={showPassword} />
                     </button>
                   </div>
                 </div>
 
-                {/* Error Message Display */}
-                {error && (
-                  <p className="text-red-500 text-xs font-medium">{error}</p>
-                )}
+                {info && <p className="text-xs font-medium text-emerald-600">{info}</p>}
+                {error && <p className="text-xs font-medium text-red-500">{error}</p>}
 
-                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-6 py-3 bg-[#111111] text-white font-semibold rounded-[10px] hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-6 w-full rounded-[10px] bg-[#111111] py-3 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? 'Logging in...' : 'Log in'}
                 </button>
               </form>
             </div>
 
-            {/* Center Divider */}
-            <div className="flex flex-row md:flex-col items-center justify-center gap-3 order-3 md:order-2">
-              <div className="h-px md:w-px w-full md:h-16 bg-[#eee]"></div>
-              <span className="text-[#bbb] text-xs font-bold uppercase px-2">or</span>
-              <div className="h-px md:w-px w-full md:h-16 bg-[#eee]"></div>
+            <div className="order-3 flex flex-row items-center justify-center gap-3 md:order-2 md:flex-col">
+              <div className="h-px w-full bg-[#eee] md:h-16 md:w-px"></div>
+              <span className="px-2 text-xs font-bold uppercase text-[#bbb]">or</span>
+              <div className="h-px w-full bg-[#eee] md:h-16 md:w-px"></div>
             </div>
 
-            {/* Right Column - Social Login */}
-            <div className="flex-1 order-1 md:order-3 flex flex-col justify-center">
+            <div className="order-1 flex flex-1 flex-col justify-center md:order-3">
               <SocialLoginButtons />
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="text-center mt-12 pt-8 border-t border-[#eee]">
-            <p className="text-[#888] text-sm">
-              Don't have an account?{' '}
-              <Link href="/signup" className="text-[#111111] hover:text-[#333] font-bold transition">
+          <div className="mt-12 border-t border-[#eee] pt-8 text-center">
+            <p className="text-sm text-[#888]">
+              Don&apos;t have an account?{' '}
+              <Link href="/signup" className="font-bold text-[#111111] transition hover:text-[#333]">
                 Sign up
               </Link>
             </p>

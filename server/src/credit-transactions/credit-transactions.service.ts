@@ -1,26 +1,31 @@
-import { Injectable } from '@nestjs/common';
-import { CreateCreditTransactionDto } from './dto/create-credit-transaction.dto';
-import { UpdateCreditTransactionDto } from './dto/update-credit-transaction.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CreditTransaction } from '../entities/credit-transaction.entity';
 
 @Injectable()
 export class CreditTransactionsService {
-  create(createCreditTransactionDto: CreateCreditTransactionDto) {
-    return 'This action adds a new creditTransaction';
+  constructor(
+    @InjectRepository(CreditTransaction)
+    private readonly transactionRepository: Repository<CreditTransaction>,
+  ) {}
+
+  async findAllByUser(userId: string): Promise<CreditTransaction[]> {
+    return await this.transactionRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
   }
 
-  findAll() {
-    return `This action returns all creditTransactions`;
-  }
+  async findOne(id: string): Promise<CreditTransaction> {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id },
+    });
 
-  findOne(id: number) {
-    return `This action returns a #${id} creditTransaction`;
-  }
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with ID ${id} not found`);
+    }
 
-  update(id: number, updateCreditTransactionDto: UpdateCreditTransactionDto) {
-    return `This action updates a #${id} creditTransaction`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} creditTransaction`;
+    return transaction;
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Heart, 
   ChevronRight, 
@@ -22,6 +23,8 @@ import {
 // --- Constants ---
 
 import PricingPopup from './PricingPopup';
+import { musicApi } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 // --- Constants ---
 
@@ -111,11 +114,15 @@ interface BuildCardFormData {
 // --- Main Component ---
 
 export default function BuildMyCard() {
+  const router = useRouter();
   const [phase, setPhase] = useState<Phase>(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [pricingOpen, setPricingOpen] = useState(false);
-  const [userCredits] = useState(0); // Mock credits
+  const [userCredits, setUserCredits] = useState<number | null>(null);
+  const [creditsUnavailable, setCreditsUnavailable] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const { user, loading: authLoading } = useAuth();
 
   const [formData, setFormData] = useState<BuildCardFormData>({
     occasion: '',
@@ -140,6 +147,106 @@ export default function BuildMyCard() {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCredits = async () => {
+      if (authLoading) {
+        return;
+      }
+
+      if (!user) {
+        if (isMounted) {
+          setUserCredits(0);
+          setCreditsUnavailable(false);
+        }
+        return;
+      }
+
+      try {
+        const credits = await musicApi.getCredits();
+
+        if (isMounted) {
+          setUserCredits(credits.image);
+          setCreditsUnavailable(false);
+        }
+      } catch {
+        if (isMounted) {
+          setUserCredits(0);
+          setCreditsUnavailable(true);
+        }
+      }
+    };
+
+    void loadCredits();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authLoading, user]);
+
+  const isCheckingCredits = authLoading || userCredits === null;
+
+  const buildDesignPrompt = () => {
+    const promptParts = [
+      'personalized greeting card design',
+      formData.occasion ? `for ${formData.occasion.toLowerCase()}` : null,
+      formData.relationship ? `for a ${formData.relationship.toLowerCase()}` : null,
+      formData.userPath === 'workflow_1'
+        ? formData.vibe
+          ? `${formData.vibe.toLowerCase()} mood`
+          : null
+        : null,
+      formData.userPath === 'workflow_1' && formData.artStyle
+        ? `${formData.artStyle.toLowerCase()} art style`
+        : null,
+      formData.userPath === 'workflow_1' && formData.metaphor
+        ? `inspired by ${formData.metaphor}`
+        : null,
+      formData.personalityTraits.length > 0
+        ? `reflecting ${formData.personalityTraits.join(', ')}`
+        : null,
+      formData.sceneDescription || null,
+      formData.environment ? `set in ${formData.environment}` : null,
+      formData.lighting ? `${formData.lighting.toLowerCase()} lighting` : null,
+      formData.framing ? `${formData.framing.toLowerCase()} framing` : null,
+      formData.orientation ? `${formData.orientation} composition` : null,
+      formData.referenceImages.length > 0 ? 'based on uploaded reference images' : null,
+      formData.identityPreservation ? 'preserve subject identity from references' : null,
+      formData.textContent ? `front text says "${formData.textContent}"` : null,
+      formData.placement ? `text placement ${formData.placement}` : null,
+      formData.grounding ? 'grounded in real-world details' : null,
+    ];
+
+    return promptParts.filter(Boolean).join(', ');
+  };
+
+  const handleApproveAndSave = () => {
+    if (!generatedImageUrl || isApproving) {
+      return;
+    }
+
+    setIsApproving(true);
+
+    const searchParams = new URLSearchParams({
+      designPrompt: buildDesignPrompt(),
+    });
+
+    if (formData.occasion) {
+      searchParams.set('occasion', formData.occasion);
+    }
+
+    if (formData.relationship) {
+      searchParams.set('recipientRelationship', formData.relationship);
+    }
+
+    if (formData.textContent) {
+      searchParams.set('message', formData.textContent);
+    }
+
+    router.push(`/create/music?${searchParams.toString()}`);
+  };
+
   const updateField = (field: keyof BuildCardFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -163,7 +270,11 @@ export default function BuildMyCard() {
 
 
   const handleCreateNow = () => {
-    if (userCredits <= 0) {
+    if (isCheckingCredits) {
+      return;
+    }
+
+    if (!creditsUnavailable && (userCredits ?? 0) <= 0) {
         setPricingOpen(true);
         return;
     }
@@ -251,8 +362,12 @@ export default function BuildMyCard() {
                 </div>
 
                 <div className="space-y-4">
-                    <button className="w-full py-5 bg-black text-white rounded-3xl font-black uppercase tracking-widest shadow-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-3">
-                        Approve & Save <Star className="w-5 h-5 fill-white" />
+                    <button
+                        onClick={handleApproveAndSave}
+                        disabled={isApproving}
+                        className="w-full py-5 bg-black text-white rounded-3xl font-black uppercase tracking-widest shadow-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-3 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {isApproving ? 'Opening Music Flow...' : 'Approve & Save'} <Star className="w-5 h-5 fill-white" />
                     </button>
                     
                     <div className="grid grid-cols-2 gap-4">
@@ -388,10 +503,11 @@ export default function BuildMyCard() {
                 </button>
                 {formData.userPath === 'workflow_1' && (
                     <button 
-                        onClick={handleCreateNow} 
-                        className="w-full py-5 bg-black text-white rounded-3xl text-xs font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 animate-in slide-in-from-top-2"
+                        onClick={handleCreateNow}
+                        disabled={isCheckingCredits}
+                        className="w-full py-5 bg-black text-white rounded-3xl text-xs font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 animate-in slide-in-from-top-2 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                        Create Now!
+                        {isCheckingCredits ? 'Checking credits...' : 'Create Now!'}
                     </button>
                 )}
             </div>
@@ -414,10 +530,11 @@ export default function BuildMyCard() {
                 </button>
                 {formData.userPath === 'workflow_2' && (
                     <button 
-                        onClick={handleCreateNow} 
-                        className="w-full py-5 bg-black text-white rounded-3xl text-xs font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 animate-in slide-in-from-top-2"
+                        onClick={handleCreateNow}
+                        disabled={isCheckingCredits}
+                        className="w-full py-5 bg-black text-white rounded-3xl text-xs font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 animate-in slide-in-from-top-2 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                        Create Now!
+                        {isCheckingCredits ? 'Checking credits...' : 'Create Now!'}
                     </button>
                 )}
             </div>
@@ -822,9 +939,10 @@ export default function BuildMyCard() {
         </button>
         <button 
           onClick={handleCreateNow}
-          className="flex-1 py-5 bg-gradient-to-r from-black to-gray-800 text-white rounded-3xl font-black uppercase tracking-widest shadow-2xl hover:scale-[1.02] transition-all"
+          disabled={isCheckingCredits}
+          className="flex-1 py-5 bg-gradient-to-r from-black to-gray-800 text-white rounded-3xl font-black uppercase tracking-widest shadow-2xl hover:scale-[1.02] transition-all disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
         >
-          Create Now (1 Credit)
+          {isCheckingCredits ? 'Checking credits...' : 'Create Now (1 Credit)'}
         </button>
       </div>
     </div>

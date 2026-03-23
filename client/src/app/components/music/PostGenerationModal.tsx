@@ -1,0 +1,99 @@
+'use client';
+
+import { useMusicStore } from '@/stores/music-store';
+import WaveformPlayer from './WaveformPlayer';
+
+interface PostGenerationModalProps {
+  onUseSong: () => void;
+}
+
+export default function PostGenerationModal({ onUseSong }: PostGenerationModalProps) {
+  const { generatedSong, setStep, cardId, linkSongToCard, error } = useMusicStore();
+
+  if (!generatedSong) return null;
+
+  const handleUseSong = async () => {
+    if (cardId) {
+      try {
+        await linkSongToCard(cardId);
+      } catch {
+        return;
+      }
+    }
+
+    onUseSong();
+  };
+
+  const handleTryAgain = () => {
+    setStep('creation_choice');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold mb-1">Your Song is Ready</h2>
+          {generatedSong.title && (
+            <p className="text-gray-500">&ldquo;{generatedSong.title}&rdquo;</p>
+          )}
+        </div>
+
+        {/* Audio player */}
+        {generatedSong.status === 'completed' && (
+          <div className="mb-6">
+            <WaveformPlayer
+              songId={generatedSong.id}
+              title={generatedSong.title}
+            />
+          </div>
+        )}
+
+        {/* Song details */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-6 text-sm">
+          {generatedSong.style && (
+            <p className="text-gray-600">
+              <span className="font-medium">Style:</span> {generatedSong.style}
+            </p>
+          )}
+          {generatedSong.duration && (
+            <p className="text-gray-600">
+              <span className="font-medium">Duration:</span>{' '}
+              {Math.floor(generatedSong.duration / 60)}:{(generatedSong.duration % 60).toString().padStart(2, '0')}
+            </p>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="space-y-3">
+          {error && (
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+              {error}
+            </p>
+          )}
+          <button
+            onClick={handleUseSong}
+            className="w-full py-3.5 rounded-xl bg-[#111111] text-white font-semibold hover:bg-[#333] transition-colors cursor-pointer"
+          >
+            Use This Song
+          </button>
+          <button
+            onClick={handleTryAgain}
+            className="w-full py-3.5 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            Try Again
+          </button>
+        </div>
+
+        {/* Storage note */}
+        <p className="text-xs text-gray-400 text-center mt-4">
+          All generated songs are stored in &ldquo;My Cards &amp; Songs&rdquo; for 30 days.
+        </p>
+      </div>
+    </div>
+  );
+}

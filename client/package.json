@@ -13,7 +13,9 @@
         "next": "^15.0.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
-        "souvenote-client": "file:"
+        "souvenote-client": "file:",
+        "wavesurfer.js": "^7.12.4",
+        "zustand": "^5.0.12"
     },
     "devDependencies": {
         "@tailwindcss/postcss": "^4.0.0",

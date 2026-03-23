@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 
 @Entity('users')
@@ -17,7 +18,7 @@ export class User {
   @Column({ name: 'password_hash' })
   passwordHash!: string;
 
-  @Column({ name: 'display_name', type:'varchar', nullable: true })
+  @Column({ name: 'display_name', type: 'varchar', nullable: true })
   displayName?: string | null;
 
   @Column({
@@ -43,4 +44,3 @@ export class User {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 }
-

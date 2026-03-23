@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { CardFormat } from './FormatModal';
 
 const FONT_STYLES = [
@@ -14,11 +15,21 @@ const FONT_STYLES = [
 interface Props {
     open: boolean;
     format: CardFormat | null;
+    cardTitle?: string | null;
+    cardCategory?: string | null;
     onClose: () => void;
     onComplete: () => void;
 }
 
-export default function PersonalizationFlow({ open, format, onClose, onComplete }: Props) {
+export default function PersonalizationFlow({
+    open,
+    format,
+    cardTitle,
+    cardCategory,
+    onClose,
+    onComplete,
+}: Props) {
+    const router = useRouter();
     const [step, setStep] = useState(1);
     const [photo, setPhoto] = useState<File | null>(null);
     const [attested, setAttested] = useState(false);
@@ -41,6 +52,39 @@ export default function PersonalizationFlow({ open, format, onClose, onComplete 
     };
 
     const STEP_LABELS = ['Photo', 'Rights', 'Text', 'Confirm'];
+
+    const handleComplete = () => {
+        const designPromptParts = [
+            format ? `${format} greeting card` : 'greeting card',
+            cardCategory ? `for ${cardCategory.toLowerCase()}` : null,
+            cardTitle ? `using the ${cardTitle} template` : null,
+            photo ? 'personalized from an uploaded photo' : null,
+            name ? `for ${name}` : null,
+            caption ? `with the caption "${caption}"` : null,
+            message ? `and a message that says "${message}"` : null,
+            `styled with ${fontStyle}`,
+        ].filter(Boolean);
+
+        const searchParams = new URLSearchParams({
+            designPrompt: designPromptParts.join(', '),
+        });
+
+        if (cardTitle) {
+            searchParams.set('templateTitle', cardTitle);
+        }
+
+        if (cardCategory) {
+            searchParams.set('occasion', cardCategory);
+        }
+
+        if (format) {
+            searchParams.set('format', format);
+        }
+
+        onComplete();
+        reset();
+        router.push(`/create/music?${searchParams.toString()}`);
+    };
 
     return (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -240,7 +284,7 @@ export default function PersonalizationFlow({ open, format, onClose, onComplete 
                                 Go Back
                             </button>
                             <button
-                                onClick={() => { onComplete(); reset(); }}
+                                onClick={handleComplete}
                                 className="bg-black text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
                             >
                                 Confirm & Continue
