@@ -20,6 +20,7 @@ export enum GenerationMethod {
   CARD_BASED = 'card_based',
   GUIDED = 'guided',
   MANUAL_PROMPT = 'manual_prompt',
+  PREMADE = 'premade',
 }
 
 @Entity('songs')
@@ -36,6 +37,9 @@ export class Song {
 
   @Column({ name: 'card_id', type: 'uuid', nullable: true })
   cardId?: string;
+
+  @Column({ name: 'premade_song_id', type: 'uuid', nullable: true })
+  premadeSongId?: string;
 
   @Column({ name: 'mureka_task_id', type: 'varchar' })
   murekaTaskId: string;

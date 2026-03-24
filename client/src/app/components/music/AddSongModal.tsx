@@ -7,14 +7,10 @@ interface AddSongModalProps {
 }
 
 export default function AddSongModal({ onSkip }: AddSongModalProps) {
-  const { setStep, songCredits } = useMusicStore();
+  const { setStep } = useMusicStore();
 
   const handleAddSong = () => {
-    if (songCredits < 1) {
-      setStep('credits_check');
-    } else {
-      setStep('creation_choice');
-    }
+    setStep('creation_choice');
   };
 
   return (
@@ -29,7 +25,7 @@ export default function AddSongModal({ onSkip }: AddSongModalProps) {
 
         <h2 className="text-2xl font-bold mb-2">Make it memorable</h2>
         <p className="text-gray-500 mb-8">
-          Add a personalized AI-generated song to your greeting card.
+          Add an AI song or choose a ready-to-send track for your greeting card.
         </p>
 
         <div className="space-y-3">

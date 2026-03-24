@@ -10,6 +10,7 @@ import { MurekaModule } from '../mureka/mureka.module';
 import { AuthModule } from '../auth/auth.module';
 import { OpenAiModule } from '../openai/openai.module';
 import { PromptEngineeringService } from './prompt-engineering.service';
+import { AudioModule } from '../audio/audio.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { PromptEngineeringService } from './prompt-engineering.service';
     MurekaModule,
     AuthModule,
     OpenAiModule,
+    AudioModule,
   ],
   controllers: [MusicController],
   providers: [MusicService, PromptEngineeringService],

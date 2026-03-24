@@ -5,7 +5,8 @@
     "scripts": {
         "build": "nest build",
         "start": "nest start",
-        "start:dev": "nest start --watch"
+        "start:dev": "nest start --watch",
+        "seed:premade-songs": "npm run build && node dist/scripts/seed-premade-songs.js"
     },
     "dependencies": {
         "@nestjs/common": "^11.0.0",

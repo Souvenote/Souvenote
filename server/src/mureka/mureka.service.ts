@@ -24,6 +24,8 @@ export interface MurekaSongQueryResponse {
   choice?: {
     id: string;
     audio_url: string;
+    url?: string;
+    flac_url?: string;
     wav_url?: string;
     video_url?: string;
     duration: number;

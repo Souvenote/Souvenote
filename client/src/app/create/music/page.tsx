@@ -3,9 +3,11 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMusicStore } from '@/stores/music-store';
+import { cardsApi, musicApi } from '@/lib/api';
 import AddSongModal from '@/app/components/music/AddSongModal';
 import CreditsCheckModal from '@/app/components/music/CreditsCheckModal';
 import SongCreationChoice from '@/app/components/music/SongCreationChoice';
+import ReadyToSendSongBrowser from '@/app/components/music/ReadyToSendSongBrowser';
 import GuidedQuestionnaire from '@/app/components/music/GuidedQuestionnaire';
 import ManualPromptView from '@/app/components/music/ManualPromptView';
 import GeneratingOverlay from '@/app/components/music/GeneratingOverlay';
@@ -17,10 +19,26 @@ function MusicGenerationContent() {
   const routeContextKey = searchParams.toString();
   const cardId = searchParams.get('cardId');
   const designPrompt = searchParams.get('designPrompt');
+  const cardTemplateId = searchParams.get('cardTemplateId');
+  const templateTitle = searchParams.get('templateTitle');
+  const occasion = searchParams.get('occasion');
+  const sourceFlow = searchParams.get('sourceFlow');
+  const format = searchParams.get('format');
+  const recipient = searchParams.get('recipient');
+  const relationship = searchParams.get('relationship');
+  const caption = searchParams.get('caption');
+  const birthday = searchParams.get('birthday');
+  const fontStyle = searchParams.get('fontStyle');
+  const personalMessage = searchParams.get('personalMessage');
+  const legacyMessage = searchParams.get('message');
   const [initializedRouteKey, setInitializedRouteKey] = useState<string | null>(null);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [finalizationError, setFinalizationError] = useState<string | null>(null);
   const {
     currentStep,
     error,
+    currentSongId,
+    generatedSong,
     setCardContext,
     fetchCredits,
     setStep,
@@ -32,6 +50,8 @@ function MusicGenerationContent() {
   useEffect(() => {
     resetFlow();
     setCardContext(cardId, designPrompt);
+    setFinalizationError(null);
+    setIsFinalizing(false);
     setInitializedRouteKey(routeContextKey);
     void fetchCredits();
 
@@ -40,12 +60,115 @@ function MusicGenerationContent() {
     };
   }, [cardId, designPrompt, routeContextKey, resetFlow, setCardContext, fetchCredits]);
 
-  const handleSkip = () => {
-    router.push('/options');
+  const canFinalizeCard = Boolean(
+    cardId || cardTemplateId || designPrompt || templateTitle || occasion,
+  );
+
+  const buildPersonalizationData = () => {
+    const data: Record<string, string | boolean> = {
+      ...(templateTitle ? { templateTitle } : {}),
+      ...(occasion ? { occasion } : {}),
+      ...((personalMessage || legacyMessage)
+        ? { personalMessage: personalMessage || legacyMessage || '' }
+        : {}),
+      ...(recipient ? { recipientName: recipient } : {}),
+      ...(relationship ? { relationship } : {}),
+      ...(caption ? { caption } : {}),
+      ...(birthday ? { birthday } : {}),
+      ...(fontStyle ? { fontStyle } : {}),
+      ...(sourceFlow ? { sourceFlow } : {}),
+      ...(sourceFlow === 'ready' ? { readyToSend: true } : {}),
+    };
+
+    return Object.keys(data).length > 0 ? data : undefined;
   };
 
-  const handleUseSong = () => {
-    router.push('/options');
+  const finalizeCard = async (songId?: string) => {
+    if (!canFinalizeCard) {
+      return null;
+    }
+
+    setFinalizationError(null);
+
+    if (cardId) {
+      if (songId) {
+        await musicApi.linkSongToCard(songId, cardId);
+      }
+
+      return { id: cardId };
+    }
+
+    setIsFinalizing(true);
+
+    try {
+      const createdCard = await cardsApi.create({
+        ...(cardTemplateId ? { cardTemplateId } : {}),
+        ...(designPrompt ? { designPrompt } : {}),
+        ...(format === 'physical' ? { format: 'physical' } : { format: 'digital' }),
+        ...(songId ? { songId } : {}),
+        status: 'complete',
+        personalizationData: buildPersonalizationData(),
+      });
+
+      if (songId) {
+        await musicApi.linkSongToCard(songId, createdCard.id);
+      }
+
+      return createdCard;
+    } catch (saveError) {
+      const message =
+        saveError instanceof Error
+          ? saveError.message
+          : 'Could not save your card right now.';
+      setFinalizationError(message);
+      throw saveError;
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
+  const handleSkip = async () => {
+    if (isFinalizing) {
+      return;
+    }
+
+    try {
+      if (canFinalizeCard) {
+        const card = await finalizeCard();
+        if (card?.id) {
+          router.push(`/delivery/${card.id}`);
+          return;
+        }
+        return;
+      }
+
+      router.push('/options');
+    } catch {
+      // Error state is shown in the UI.
+    }
+  };
+
+  const handleUseSong = async () => {
+    if (isFinalizing) {
+      return;
+    }
+
+    const songId = generatedSong?.id || currentSongId || undefined;
+
+    try {
+      if (songId || canFinalizeCard) {
+        const card = await finalizeCard(songId);
+        if (card?.id) {
+          router.push(`/delivery/${card.id}`);
+          return;
+        }
+        return;
+      }
+
+      router.push('/options');
+    } catch {
+      // Error state is shown in the UI.
+    }
   };
 
   if (!isRouteReady) {
@@ -67,10 +190,17 @@ function MusicGenerationContent() {
         </div>
       )}
 
+      {finalizationError && (
+        <div className="fixed top-6 left-1/2 z-[60] max-w-md -translate-x-1/2 rounded-2xl bg-red-600 px-6 py-3 text-sm font-medium text-white shadow-lg text-center">
+          {finalizationError}
+        </div>
+      )}
+
       {/* Flow modals */}
       {currentStep === 'initial' && <AddSongModal onSkip={handleSkip} />}
       {currentStep === 'credits_check' && <CreditsCheckModal onSkip={handleSkip} />}
       {currentStep === 'creation_choice' && <SongCreationChoice />}
+      {currentStep === 'premade_browse' && <ReadyToSendSongBrowser />}
       {currentStep === 'guided' && <GuidedQuestionnaire />}
       {currentStep === 'manual' && <ManualPromptView />}
       {currentStep === 'generating' && <GeneratingOverlay />}

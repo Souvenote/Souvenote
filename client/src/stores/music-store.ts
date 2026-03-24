@@ -1,16 +1,17 @@
 'use client';
 
 import { create } from 'zustand';
-import { musicApi, ApiError, type GenerateSongRequest } from '@/lib/api';
+import { musicApi, premadeSongsApi, ApiError, type GenerateSongRequest } from '@/lib/api';
 
 let activePollTimer: ReturnType<typeof setTimeout> | null = null;
 let activePollSession = 0;
 
-export type GenerationMethod = 'card_based' | 'guided' | 'manual_prompt';
+export type GenerationMethod = 'card_based' | 'guided' | 'manual_prompt' | 'premade';
 export type FlowStep =
   | 'initial'         // Add Song / Skip modal
   | 'credits_check'   // Insufficient credits
   | 'creation_choice' // Based on card or custom?
+  | 'premade_browse'  // Browse ready songs
   | 'guided'          // Guided questionnaire
   | 'manual'          // Manual prompt
   | 'generating'      // Waiting for Mureka
@@ -61,6 +62,7 @@ interface MusicState {
   fetchCredits: () => Promise<void>;
   
   startGeneration: (params: GenerateSongRequest) => Promise<void>;
+  selectPremadeSong: (premadeSongId: string) => Promise<void>;
   
   pollStatus: () => Promise<void>;
   stopPolling: () => void;
@@ -148,6 +150,35 @@ export const useMusicStore = create<MusicState>((set, get) => ({
       set({
         currentStep: isInsufficientCredits ? 'credits_check' : 'failed',
         error: isInsufficientCredits ? null : message,
+        isStartingGeneration: false,
+      });
+    }
+  },
+
+  selectPremadeSong: async (premadeSongId) => {
+    if (get().isStartingGeneration) {
+      return;
+    }
+
+    set({
+      error: null,
+      isStartingGeneration: true,
+    });
+
+    try {
+      const song = await premadeSongsApi.select(premadeSongId);
+
+      set({
+        currentSongId: song.id,
+        generatedSong: song,
+        generationMethod: 'premade',
+        currentStep: 'completed',
+        isStartingGeneration: false,
+      });
+    } catch (err) {
+      set({
+        currentStep: 'premade_browse',
+        error: err instanceof Error ? err.message : 'Could not select this ready song',
         isStartingGeneration: false,
       });
     }

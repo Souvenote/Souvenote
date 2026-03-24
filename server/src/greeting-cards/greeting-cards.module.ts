@@ -4,10 +4,9 @@ import { GreetingCardsService } from './greeting-cards.service';
 import { GreetingCardsController } from './greeting-cards.controller';
 import { GreetingCard } from '../entities/greeting-card.entity';
 import { AuthModule } from '../auth/auth.module';
-import { User } from '../entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([GreetingCard, User]), AuthModule],
+  imports: [TypeOrmModule.forFeature([GreetingCard]), AuthModule],
   controllers: [GreetingCardsController],
   providers: [GreetingCardsService],
   exports: [GreetingCardsService],

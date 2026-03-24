@@ -35,6 +35,13 @@ export class User {
   })
   songCreditBalance!: number;
 
+  @Column({
+    name: 'mailed_card_balance',
+    type: 'integer',
+    default: 0,
+  })
+  mailedCardBalance!: number;
+
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 

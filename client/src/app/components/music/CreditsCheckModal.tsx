@@ -34,12 +34,12 @@ export default function CreditsCheckModal({ onSkip }: CreditsCheckModalProps) {
             </svg>
           </div>
 
-          <h2 className="text-2xl font-bold mb-2">No Song Credits</h2>
+          <h2 className="text-2xl font-bold mb-2">No AI Song Credits</h2>
           <p className="text-gray-500 mb-2">
-            You need at least 1 song credit to generate music.
+            You need at least 1 song credit to generate a custom AI song.
           </p>
           <p className="text-sm text-gray-400 mb-8">
-            Current balance: {songCredits} song credits
+            Current balance: {songCredits} song credits. Ready Songs are still free to use.
           </p>
 
           <div className="space-y-3">
@@ -48,6 +48,12 @@ export default function CreditsCheckModal({ onSkip }: CreditsCheckModalProps) {
               className="w-full py-3.5 rounded-xl bg-[#111111] text-white font-semibold hover:bg-[#333] transition-colors cursor-pointer"
             >
               Add Song Credits
+            </button>
+            <button
+              onClick={() => setStep('premade_browse')}
+              className="w-full py-3.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              Choose a Ready Song Instead
             </button>
             <button
               onClick={onSkip}

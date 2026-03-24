@@ -6,14 +6,30 @@ import { useMusicStore } from '@/stores/music-store';
 type CreationStep = 'entry' | 'create_own';
 
 export default function SongCreationChoice() {
-  const { setStep, startGeneration, cardDesignPrompt, cardId, isStartingGeneration } = useMusicStore();
-  const [creationStep, setCreationStep] = useState<CreationStep>(
-    cardDesignPrompt ? 'entry' : 'create_own',
-  );
+  const {
+    setStep,
+    startGeneration,
+    cardDesignPrompt,
+    cardId,
+    isStartingGeneration,
+    songCredits,
+  } = useMusicStore();
+  const [creationStep, setCreationStep] = useState<CreationStep>('entry');
 
   useEffect(() => {
-    setCreationStep(cardDesignPrompt ? 'entry' : 'create_own');
+    setCreationStep('entry');
   }, [cardDesignPrompt]);
+
+  const canGenerateAi = songCredits >= 1;
+
+  const handleCreateOwn = () => {
+    if (!canGenerateAi) {
+      setStep('credits_check');
+      return;
+    }
+
+    setCreationStep('create_own');
+  };
 
   const ChoiceCard = ({
     title,
@@ -68,6 +84,11 @@ export default function SongCreationChoice() {
                 onClick={() => {
                   if (!cardDesignPrompt) return;
 
+                  if (!canGenerateAi) {
+                    setStep('credits_check');
+                    return;
+                  }
+
                   startGeneration({
                     mode: 'card_based',
                     cardId: cardId || undefined,
@@ -81,24 +102,42 @@ export default function SongCreationChoice() {
               <ChoiceCard
                 title="Create my own"
                 description="Choose a guided questionnaire or write your own prompt with optional AI enhancement."
-                onClick={() => setCreationStep('create_own')}
+                onClick={handleCreateOwn}
                 disabled={isStartingGeneration}
                 iconPath="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
               />
+
+              <ChoiceCard
+                title="Choose a Ready Song"
+                description="Browse curated songs by occasion and mood. These do not use AI song credits."
+                onClick={() => setStep('premade_browse')}
+                disabled={isStartingGeneration}
+                iconPath="M3 10.5l9-6 9 6M4.5 9.75V19.5A1.5 1.5 0 006 21h12a1.5 1.5 0 001.5-1.5V9.75M9 21V12h6v9"
+              />
             </div>
+
+            {!canGenerateAi && (
+              <p className="mt-6 text-center text-sm text-amber-600">
+                You&apos;re out of AI song credits, but Ready Songs are still available.
+              </p>
+            )}
           </>
         ) : (
           <>
-            {cardDesignPrompt && (
-              <button
-                onClick={() => setCreationStep('entry')}
-                className="text-gray-400 hover:text-gray-600 mb-4 cursor-pointer"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-            )}
+            <button
+              onClick={() => setCreationStep('entry')}
+              className="text-gray-400 hover:text-gray-600 mb-4 cursor-pointer"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            {!canGenerateAi ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                Add AI song credits to generate a custom track, or go back and choose a Ready Song instead.
+              </div>
+            ) : null}
 
             <h2 className="text-2xl font-bold text-center mb-2">Create My Own</h2>
             <p className="text-gray-500 text-center mb-8">
@@ -109,7 +148,7 @@ export default function SongCreationChoice() {
               <ChoiceCard
                 title="Guided questionnaire"
                 description="Answer a few questions and we&apos;ll build the best prompt for you behind the scenes."
-                onClick={() => setStep('guided')}
+                onClick={() => (canGenerateAi ? setStep('guided') : setStep('credits_check'))}
                 disabled={isStartingGeneration}
                 iconPath="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
               />
@@ -117,7 +156,7 @@ export default function SongCreationChoice() {
               <ChoiceCard
                 title="Manual prompting"
                 description="Write your own prompt, then use the magic wand if you want help tightening it up."
-                onClick={() => setStep('manual')}
+                onClick={() => (canGenerateAi ? setStep('manual') : setStep('credits_check'))}
                 disabled={isStartingGeneration}
                 iconPath="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
               />

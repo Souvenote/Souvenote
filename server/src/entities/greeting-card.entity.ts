@@ -20,6 +20,12 @@ export enum CardStatus {
   COMPLETE = 'complete',
 }
 
+export enum DeliveryStatus {
+  PENDING = 'pending',
+  SHARED = 'shared',
+  ADDRESS_RECEIVED = 'address_received',
+}
+
 @Entity('greeting_cards')
 export class GreetingCard {
   @PrimaryGeneratedColumn('uuid')
@@ -35,6 +41,9 @@ export class GreetingCard {
   @Column({ name: 'template_id', type: 'varchar', nullable: true })
   templateId?: string;
 
+  @Column({ name: 'card_template_id', type: 'uuid', nullable: true })
+  cardTemplateId?: string;
+
   @Column({ name: 'design_prompt', type: 'text', nullable: true })
   designPrompt?: string;
 
@@ -47,6 +56,32 @@ export class GreetingCard {
 
   @Column({ name: 'song_id', type: 'uuid', nullable: true })
   songId?: string;
+
+  @Column({ name: 'share_token', type: 'varchar', unique: true, nullable: true })
+  shareToken?: string;
+
+  @Column({ name: 'recipient_name', type: 'varchar', nullable: true })
+  recipientName?: string;
+
+  @Column({ name: 'recipient_email', type: 'varchar', nullable: true })
+  recipientEmail?: string;
+
+  @Column({ name: 'delivery_message', type: 'text', nullable: true })
+  deliveryMessage?: string;
+
+  @Column({ name: 'shipping_address', type: 'jsonb', nullable: true })
+  shippingAddress?: Record<string, any>;
+
+  @Column({
+    name: 'delivery_status',
+    type: 'enum',
+    enum: DeliveryStatus,
+    default: DeliveryStatus.PENDING,
+  })
+  deliveryStatus: DeliveryStatus;
+
+  @Column({ name: 'delivered_at', type: 'timestamp', nullable: true })
+  deliveredAt?: Date;
 
   @Column({
     type: 'enum',

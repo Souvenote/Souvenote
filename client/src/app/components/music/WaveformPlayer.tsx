@@ -6,6 +6,7 @@ import { musicApi } from '@/lib/api';
 interface WaveformPlayerProps {
   songId: string;
   title?: string;
+  fetchAudio?: (id: string) => Promise<Blob>;
 }
 
 function formatTime(seconds: number) {
@@ -19,7 +20,7 @@ function formatTime(seconds: number) {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
-export default function WaveformPlayer({ songId, title }: WaveformPlayerProps) {
+export default function WaveformPlayer({ songId, title, fetchAudio }: WaveformPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const objectUrlRef = useRef<string | null>(null);
   const isCleaningUpRef = useRef(false);
@@ -72,7 +73,7 @@ export default function WaveformPlayer({ songId, title }: WaveformPlayerProps) {
 
     const loadAudio = async () => {
       try {
-        const audioBlob = await musicApi.getSongAudio(songId);
+        const audioBlob = await (fetchAudio || musicApi.getSongAudio)(songId);
 
         if (isCancelled) {
           return;
@@ -106,7 +107,7 @@ export default function WaveformPlayer({ songId, title }: WaveformPlayerProps) {
       detachAudioElement();
       revokeObjectUrl();
     };
-  }, [detachAudioElement, revokeObjectUrl, songId]);
+  }, [detachAudioElement, fetchAudio, revokeObjectUrl, songId]);
 
   const handleLoadedMetadata = () => {
     const audio = audioRef.current;

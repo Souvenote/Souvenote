@@ -32,6 +32,7 @@ export class UsersService {
       ...userData,
       imageCreditBalance: 1,
       songCreditBalance: 1,
+      mailedCardBalance: 0,
     });
     return await this.usersRepository.save(user);
   }

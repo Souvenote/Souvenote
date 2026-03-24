@@ -6,6 +6,6 @@ import { User } from '../entities/user.entity';
 @Module({
   imports: [TypeOrmModule.forFeature([User])],
   providers: [CognitoAuthGuard],
-  exports: [CognitoAuthGuard],
+  exports: [CognitoAuthGuard, TypeOrmModule],
 })
 export class AuthModule {}

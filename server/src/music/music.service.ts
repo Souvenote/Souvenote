@@ -20,6 +20,7 @@ import {
 import { MurekaService, MurekaSongQueryResponse } from '../mureka/mureka.service';
 import { GenerateSongDto } from './dto/generate-song.dto';
 import { PromptEngineeringService } from './prompt-engineering.service';
+import { AudioPayload, AudioProxyService } from '../audio/audio-proxy.service';
 
 interface PreparedGenerationRequest {
   rawPrompt: string;
@@ -34,12 +35,6 @@ interface PreparedGenerationRequest {
     occasion?: string;
     mood?: string;
   };
-}
-
-interface SongAudioPayload {
-  buffer: Buffer;
-  contentType: string;
-  fileName: string;
 }
 
 @Injectable()
@@ -70,6 +65,7 @@ export class MusicService {
     private readonly creditTransactionRepository: Repository<CreditTransaction>,
     private readonly murekaService: MurekaService,
     private readonly promptEngineeringService: PromptEngineeringService,
+    private readonly audioProxyService: AudioProxyService,
   ) {}
 
   async generateSong(userId: string, dto: GenerateSongDto): Promise<Song> {
@@ -221,7 +217,7 @@ export class MusicService {
     return song;
   }
 
-  async getSongAudio(songId: string, userId: string): Promise<SongAudioPayload> {
+  async getSongAudio(songId: string, userId: string): Promise<AudioPayload> {
     const song = await this.songRepository.findOne({
       where: { id: songId, userId },
     });
@@ -230,65 +226,19 @@ export class MusicService {
       throw new NotFoundException('Song not found');
     }
 
-    if (song.status !== SongStatus.COMPLETED) {
-      throw new ForbiddenException('Song must be completed before playback');
+    return this.getAudioPayloadForSong(song);
+  }
+
+  async getSharedSongAudio(songId: string): Promise<AudioPayload> {
+    const song = await this.songRepository.findOne({
+      where: { id: songId },
+    });
+
+    if (!song) {
+      throw new NotFoundException('Song not found');
     }
 
-    if (song.expiresAt <= new Date()) {
-      throw new ForbiddenException('This song has expired and is no longer available');
-    }
-
-    const refreshedFromProvider = await this.refreshSongFromProvider(song);
-
-    if (!song.audioUrl) {
-      throw new NotFoundException('Song audio is not available');
-    }
-
-    let audioResponse = await fetch(song.audioUrl);
-
-    if (!audioResponse.ok && !refreshedFromProvider) {
-      await this.refreshSongFromProvider(song);
-
-      if (!song.audioUrl) {
-        throw new NotFoundException('Song audio is not available');
-      }
-
-      audioResponse = await fetch(song.audioUrl);
-    }
-
-    if (!audioResponse.ok) {
-      const errorBody = await audioResponse.text();
-      this.logger.error(
-        `Song audio download failed: songId=${song.id}, status=${audioResponse.status}, body=${errorBody}`,
-      );
-      throw new HttpException('Song audio is temporarily unavailable', HttpStatus.BAD_GATEWAY);
-    }
-
-    const upstreamContentType = audioResponse.headers.get('content-type');
-
-    if (
-      upstreamContentType &&
-      !upstreamContentType.startsWith('audio/') &&
-      upstreamContentType !== 'application/octet-stream'
-    ) {
-      const errorBody = await audioResponse.text();
-      this.logger.error(
-        `Song audio returned unexpected content: songId=${song.id}, contentType=${upstreamContentType}, body=${errorBody}`,
-      );
-      throw new HttpException('Song audio is temporarily unavailable', HttpStatus.BAD_GATEWAY);
-    }
-
-    const contentType = this.resolveAudioContentType(
-      upstreamContentType,
-      song.audioUrl,
-    );
-    const buffer = Buffer.from(await audioResponse.arrayBuffer());
-
-    return {
-      buffer,
-      contentType,
-      fileName: `souvenote-song-${song.id}.${this.resolveAudioExtension(contentType, song.audioUrl)}`,
-    };
+    return this.getAudioPayloadForSong(song);
   }
 
   async linkSongToCard(
@@ -364,6 +314,14 @@ export class MusicService {
     if (!song) {
       throw new NotFoundException('Song not found');
     }
+
+    await this.cardRepository
+      .createQueryBuilder()
+      .update(GreetingCard)
+      .set({ songId: () => 'NULL' } as any)
+      .where('user_id = :userId', { userId })
+      .andWhere('song_id = :songId', { songId })
+      .execute();
 
     await this.songRepository.remove(song);
     this.logger.log(`Song ${songId} deleted by user ${userId}`);
@@ -600,9 +558,9 @@ export class MusicService {
     duration?: number;
     title?: string;
   } {
-    if (queryResult.audio_url || queryResult.wav_url) {
+    if (queryResult.wav_url || queryResult.audio_url) {
       return {
-        audioUrl: queryResult.audio_url || queryResult.wav_url,
+        audioUrl: queryResult.wav_url || queryResult.audio_url,
         duration: this.normalizeDuration(queryResult.duration),
         title: queryResult.title,
       };
@@ -610,7 +568,10 @@ export class MusicService {
 
     if (queryResult.choice && queryResult.choice.length > 0) {
       return {
-        audioUrl: queryResult.choice[0].audio_url || queryResult.choice[0].wav_url,
+        audioUrl:
+          queryResult.choice[0].url ||
+          queryResult.choice[0].wav_url ||
+          queryResult.choice[0].audio_url,
         duration: this.normalizeDuration(queryResult.choice[0].duration),
         title: queryResult.choice[0].title || queryResult.title,
       };
@@ -619,10 +580,11 @@ export class MusicService {
     if (queryResult.choices && queryResult.choices.length > 0) {
       return {
         audioUrl:
+          queryResult.choices[0].url ||
+          queryResult.choices[0].wav_url ||
           queryResult.choices[0].audio_url ||
           queryResult.choices[0].flac_url ||
-          queryResult.choices[0].wav_url ||
-          queryResult.choices[0].url,
+          undefined,
         duration: this.normalizeDuration(queryResult.choices[0].duration),
         title: queryResult.choices[0].title || queryResult.title,
       };
@@ -682,49 +644,25 @@ export class MusicService {
     }
   }
 
-  private resolveAudioContentType(contentType: string | null, audioUrl: string): string {
-    if (contentType && contentType !== 'application/octet-stream') {
-      return contentType;
+  private async getAudioPayloadForSong(song: Song): Promise<AudioPayload> {
+    if (song.status !== SongStatus.COMPLETED) {
+      throw new ForbiddenException('Song must be completed before playback');
     }
 
-    const extension = this.resolveAudioExtension(contentType || '', audioUrl);
-
-    switch (extension) {
-      case 'wav':
-        return 'audio/wav';
-      case 'ogg':
-        return 'audio/ogg';
-      case 'flac':
-        return 'audio/flac';
-      default:
-        return 'audio/mpeg';
-    }
-  }
-
-  private resolveAudioExtension(contentType: string, audioUrl: string): string {
-    if (contentType.includes('wav')) {
-      return 'wav';
+    if (song.expiresAt <= new Date()) {
+      throw new ForbiddenException('This song has expired and is no longer available');
     }
 
-    if (contentType.includes('ogg')) {
-      return 'ogg';
+    const refreshedFromProvider = await this.refreshSongFromProvider(song);
+
+    if (!song.audioUrl && !refreshedFromProvider) {
+      await this.refreshSongFromProvider(song);
     }
 
-    if (contentType.includes('flac')) {
-      return 'flac';
+    if (!song.audioUrl) {
+      throw new NotFoundException('Song audio is not available');
     }
 
-    try {
-      const pathname = new URL(audioUrl).pathname;
-      const match = pathname.match(/\.([a-z0-9]+)$/i);
-
-      if (match?.[1]) {
-        return match[1].toLowerCase();
-      }
-    } catch {
-      // Fall back to a broadly supported extension.
-    }
-
-    return 'mp3';
+    return this.audioProxyService.fetchAudioPayload(song.audioUrl, `souvenote-song-${song.id}`);
   }
 }

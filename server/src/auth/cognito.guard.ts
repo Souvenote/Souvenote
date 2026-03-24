@@ -56,6 +56,7 @@ export class CognitoAuthGuard implements CanActivate {
       displayName: username,
       imageCreditBalance: STARTER_IMAGE_CREDITS,
       songCreditBalance: STARTER_SONG_CREDITS,
+      mailedCardBalance: 0,
       isActive: true,
     });
 

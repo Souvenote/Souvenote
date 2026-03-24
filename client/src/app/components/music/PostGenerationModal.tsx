@@ -8,24 +8,14 @@ interface PostGenerationModalProps {
 }
 
 export default function PostGenerationModal({ onUseSong }: PostGenerationModalProps) {
-  const { generatedSong, setStep, cardId, linkSongToCard, error } = useMusicStore();
+  const { generatedSong, setStep, error } = useMusicStore();
 
   if (!generatedSong) return null;
 
-  const handleUseSong = async () => {
-    if (cardId) {
-      try {
-        await linkSongToCard(cardId);
-      } catch {
-        return;
-      }
-    }
-
-    onUseSong();
-  };
+  const handleUseSong = async () => onUseSong();
 
   const handleTryAgain = () => {
-    setStep('creation_choice');
+    setStep(generatedSong.generationMethod === 'premade' ? 'premade_browse' : 'creation_choice');
   };
 
   return (
@@ -91,7 +81,7 @@ export default function PostGenerationModal({ onUseSong }: PostGenerationModalPr
 
         {/* Storage note */}
         <p className="text-xs text-gray-400 text-center mt-4">
-          All generated songs are stored in &ldquo;My Cards &amp; Songs&rdquo; for 30 days.
+          Songs you attach are stored in &ldquo;My Cards &amp; Songs&rdquo; for 30 days.
         </p>
       </div>
     </div>
