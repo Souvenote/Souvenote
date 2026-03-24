@@ -205,7 +205,7 @@ export default function PricingModal({ onClose }: PricingModalProps) {
                                 Choose a &ldquo;Ready to Send&rdquo; card from our marketplace
                             </p>
                             <p className="text-xs text-gray-500">
-                                Add your own message, no AI customization. Starting at $6.49.
+                                Add your own message with no AI customization. Physical cards start at $6.99 CAD.
                             </p>
                         </div>
                         <button

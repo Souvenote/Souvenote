@@ -96,6 +96,20 @@ export default function DeliveryPage() {
   );
 
   const previewEmoji = delivery?.template?.previewEmoji || (delivery?.format === 'physical' ? '💌' : '✨');
+  const selectedPriceCad = useMemo(() => {
+    const rawPrice = delivery?.personalizationData?.selectedPriceCad;
+
+    if (typeof rawPrice === 'number' && Number.isFinite(rawPrice)) {
+      return rawPrice;
+    }
+
+    if (typeof rawPrice === 'string') {
+      const parsedPrice = Number(rawPrice);
+      return Number.isFinite(parsedPrice) ? parsedPrice : null;
+    }
+
+    return null;
+  }, [delivery?.personalizationData?.selectedPriceCad]);
 
   const handleCopyLink = async () => {
     if (!delivery?.shareUrl) {
@@ -222,6 +236,12 @@ export default function DeliveryPage() {
                     <span className="font-semibold text-[#111111]">Song attached:</span>{' '}
                     {delivery.songId ? 'Yes' : 'No'}
                   </p>
+                  {selectedPriceCad !== null && (
+                    <p className="mt-2">
+                      <span className="font-semibold text-[#111111]">Card price:</span>{' '}
+                      {`CAD $${selectedPriceCad.toFixed(2)}`}
+                    </p>
+                  )}
                   <p className="mt-2">
                     <span className="font-semibold text-[#111111]">Delivery status:</span>{' '}
                     {delivery.deliveryStatus.replace(/_/g, ' ')}

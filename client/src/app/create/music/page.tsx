@@ -23,7 +23,6 @@ function MusicGenerationContent() {
   const templateTitle = searchParams.get('templateTitle');
   const occasion = searchParams.get('occasion');
   const sourceFlow = searchParams.get('sourceFlow');
-  const format = searchParams.get('format');
   const recipient = searchParams.get('recipient');
   const relationship = searchParams.get('relationship');
   const caption = searchParams.get('caption');
@@ -31,6 +30,7 @@ function MusicGenerationContent() {
   const fontStyle = searchParams.get('fontStyle');
   const personalMessage = searchParams.get('personalMessage');
   const legacyMessage = searchParams.get('message');
+  const selectedPriceCadParam = searchParams.get('selectedPriceCad');
   const [initializedRouteKey, setInitializedRouteKey] = useState<string | null>(null);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [finalizationError, setFinalizationError] = useState<string | null>(null);
@@ -63,9 +63,10 @@ function MusicGenerationContent() {
   const canFinalizeCard = Boolean(
     cardId || cardTemplateId || designPrompt || templateTitle || occasion,
   );
+  const selectedPriceCad = selectedPriceCadParam ? Number(selectedPriceCadParam) : null;
 
   const buildPersonalizationData = () => {
-    const data: Record<string, string | boolean> = {
+    const data: Record<string, string | boolean | number> = {
       ...(templateTitle ? { templateTitle } : {}),
       ...(occasion ? { occasion } : {}),
       ...((personalMessage || legacyMessage)
@@ -78,6 +79,9 @@ function MusicGenerationContent() {
       ...(fontStyle ? { fontStyle } : {}),
       ...(sourceFlow ? { sourceFlow } : {}),
       ...(sourceFlow === 'ready' ? { readyToSend: true } : {}),
+      ...(typeof selectedPriceCad === 'number' && Number.isFinite(selectedPriceCad)
+        ? { selectedPriceCad: Number(selectedPriceCad.toFixed(2)) }
+        : {}),
     };
 
     return Object.keys(data).length > 0 ? data : undefined;
@@ -104,7 +108,7 @@ function MusicGenerationContent() {
       const createdCard = await cardsApi.create({
         ...(cardTemplateId ? { cardTemplateId } : {}),
         ...(designPrompt ? { designPrompt } : {}),
-        ...(format === 'physical' ? { format: 'physical' } : { format: 'digital' }),
+        format: 'physical',
         ...(songId ? { songId } : {}),
         status: 'complete',
         personalizationData: buildPersonalizationData(),

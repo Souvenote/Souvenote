@@ -1,57 +1,58 @@
 'use client';
 
 export type CardAction = 'select' | 'personalize' | 'build';
-export type CardFormat = 'physical' | 'digital';
+export type CardFormat = 'physical';
 
 interface Props {
     open: boolean;
     onClose: () => void;
     onSelect: (format: CardFormat) => void;
+    price?: string;
+    subtitle?: string;
 }
 
-export default function FormatModal({ open, onClose, onSelect }: Props) {
+export default function FormatModal({
+    open,
+    onClose,
+    onSelect,
+    price = 'CDN $9.99',
+    subtitle = 'includes shipping',
+}: Props) {
     if (!open) return null;
 
     return (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-8 max-w-md w-full space-y-6">
                 <div className="text-center space-y-2">
-                    <h3 className="font-bold text-xl">Choose your card format</h3>
+                    <h3 className="font-bold text-xl">Confirm your card</h3>
                     <p className="text-sm text-gray-500">
-                        Select whether you want a physical card or digital card
+                        We are sending physical cards only for this flow.
                     </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <button
-                        onClick={() => onSelect('physical')}
-                        className="border-2 border-gray-200 rounded-xl p-5 text-left hover:border-black transition-colors space-y-1 group"
-                    >
-                        <div className="font-semibold text-sm group-hover:text-black transition-colors">
-                            Physical Card
-                        </div>
-                        <div className="text-xl font-bold">CDN $9.99</div>
-                        <div className="text-xs text-gray-400">includes shipping</div>
-                    </button>
-
-                    <button
-                        onClick={() => onSelect('digital')}
-                        className="border-2 border-gray-200 rounded-xl p-5 text-left hover:border-black transition-colors space-y-1 group"
-                    >
-                        <div className="font-semibold text-sm group-hover:text-black transition-colors">
-                            Digital Card
-                        </div>
-                        <div className="text-xl font-bold">CDN $2.99</div>
-                        <div className="text-xs text-gray-400">instant delivery</div>
-                    </button>
+                <div className="rounded-2xl border-2 border-gray-200 p-6 text-left shadow-sm space-y-2">
+                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
+                        Physical card
+                    </div>
+                    <div className="text-3xl font-bold text-gray-900">{price}</div>
+                    <div className="text-sm text-gray-500">{subtitle}</div>
                 </div>
 
-                <button
-                    onClick={onClose}
-                    className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                    Cancel
-                </button>
+                <div className="space-y-3">
+                    <button
+                        onClick={() => onSelect('physical')}
+                        className="w-full rounded-xl bg-black py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+                    >
+                        Continue with Physical Card
+                    </button>
+
+                    <button
+                        onClick={onClose}
+                        className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                </div>
             </div>
         </div>
     );

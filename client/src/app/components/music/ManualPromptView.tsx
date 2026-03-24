@@ -5,7 +5,7 @@ import { musicApi } from '@/lib/api';
 import { useMusicStore } from '@/stores/music-store';
 
 export default function ManualPromptView() {
-  const { startGeneration, setStep, isStartingGeneration } = useMusicStore();
+  const { startGeneration, setCreationChoiceView, setStep, isStartingGeneration } = useMusicStore();
 
   const [prompt, setPrompt] = useState('');
   const [lyrics, setLyrics] = useState('');
@@ -15,6 +15,11 @@ export default function ManualPromptView() {
   const [enhancementError, setEnhancementError] = useState<string | null>(null);
 
   const canSubmit = prompt.trim().length > 5;
+
+  const handleBack = () => {
+    setCreationChoiceView('create_own');
+    setStep('creation_choice');
+  };
 
   const handleEnhancePrompt = async () => {
     if (!canSubmit || isEnhancing) return;
@@ -36,6 +41,7 @@ export default function ManualPromptView() {
   };
 
   const handleSubmit = () => {
+    setCreationChoiceView('create_own');
     startGeneration({
       mode: 'custom',
       prompt: prompt.trim(),
@@ -47,12 +53,13 @@ export default function ManualPromptView() {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-8">
         <button
-          onClick={() => setStep('creation_choice')}
-          className="text-gray-400 hover:text-gray-600 mb-4 cursor-pointer"
+          onClick={handleBack}
+          className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-gray-600 cursor-pointer"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
+          Back
         </button>
 
         <h2 className="text-2xl font-bold mb-1">Manual Prompting</h2>

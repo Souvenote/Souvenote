@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useMusicStore } from '@/stores/music-store';
-
-type CreationStep = 'entry' | 'create_own';
 
 export default function SongCreationChoice() {
   const {
+    creationChoiceView,
+    setCreationChoiceView,
     setStep,
     startGeneration,
     cardDesignPrompt,
@@ -14,21 +13,25 @@ export default function SongCreationChoice() {
     isStartingGeneration,
     songCredits,
   } = useMusicStore();
-  const [creationStep, setCreationStep] = useState<CreationStep>('entry');
-
-  useEffect(() => {
-    setCreationStep('entry');
-  }, [cardDesignPrompt]);
 
   const canGenerateAi = songCredits >= 1;
 
   const handleCreateOwn = () => {
+    setCreationChoiceView('create_own');
+
     if (!canGenerateAi) {
       setStep('credits_check');
       return;
     }
+  };
 
-    setCreationStep('create_own');
+  const handleBackToInitial = () => {
+    setCreationChoiceView('entry');
+    setStep('initial');
+  };
+
+  const handleBackToEntry = () => {
+    setCreationChoiceView('entry');
   };
 
   const ChoiceCard = ({
@@ -70,8 +73,18 @@ export default function SongCreationChoice() {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
-        {creationStep === 'entry' ? (
+        {creationChoiceView === 'entry' ? (
           <>
+            <button
+              onClick={handleBackToInitial}
+              className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-gray-600 cursor-pointer"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </button>
+
             <h2 className="text-2xl font-bold text-center mb-2">Create Your Song</h2>
             <p className="text-gray-500 text-center mb-8">
               Start from your card or build your own song from scratch.
@@ -85,10 +98,12 @@ export default function SongCreationChoice() {
                   if (!cardDesignPrompt) return;
 
                   if (!canGenerateAi) {
+                    setCreationChoiceView('entry');
                     setStep('credits_check');
                     return;
                   }
 
+                  setCreationChoiceView('entry');
                   startGeneration({
                     mode: 'card_based',
                     cardId: cardId || undefined,
@@ -110,7 +125,10 @@ export default function SongCreationChoice() {
               <ChoiceCard
                 title="Choose a Ready Song"
                 description="Browse curated songs by occasion and mood. These do not use AI song credits."
-                onClick={() => setStep('premade_browse')}
+                onClick={() => {
+                  setCreationChoiceView('entry');
+                  setStep('premade_browse');
+                }}
                 disabled={isStartingGeneration}
                 iconPath="M3 10.5l9-6 9 6M4.5 9.75V19.5A1.5 1.5 0 006 21h12a1.5 1.5 0 001.5-1.5V9.75M9 21V12h6v9"
               />
@@ -125,12 +143,13 @@ export default function SongCreationChoice() {
         ) : (
           <>
             <button
-              onClick={() => setCreationStep('entry')}
-              className="text-gray-400 hover:text-gray-600 mb-4 cursor-pointer"
+              onClick={handleBackToEntry}
+              className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-gray-600 cursor-pointer"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
+              Back
             </button>
 
             {!canGenerateAi ? (
@@ -148,7 +167,10 @@ export default function SongCreationChoice() {
               <ChoiceCard
                 title="Guided questionnaire"
                 description="Answer a few questions and we&apos;ll build the best prompt for you behind the scenes."
-                onClick={() => (canGenerateAi ? setStep('guided') : setStep('credits_check'))}
+                onClick={() => {
+                  setCreationChoiceView('create_own');
+                  setStep(canGenerateAi ? 'guided' : 'credits_check');
+                }}
                 disabled={isStartingGeneration}
                 iconPath="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
               />
@@ -156,7 +178,10 @@ export default function SongCreationChoice() {
               <ChoiceCard
                 title="Manual prompting"
                 description="Write your own prompt, then use the magic wand if you want help tightening it up."
-                onClick={() => (canGenerateAi ? setStep('manual') : setStep('credits_check'))}
+                onClick={() => {
+                  setCreationChoiceView('create_own');
+                  setStep(canGenerateAi ? 'manual' : 'credits_check');
+                }}
                 disabled={isStartingGeneration}
                 iconPath="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
               />

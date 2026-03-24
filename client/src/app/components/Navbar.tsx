@@ -109,7 +109,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className="relative flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 text-sm text-[#111111] font-sans">
+    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-gray-100 bg-white/95 px-6 py-4 text-sm text-[#111111] backdrop-blur-md font-sans">
       <div className="font-bold text-lg tracking-tight flex-shrink-0">
         <Link href="/">Souvenote</Link>
       </div>

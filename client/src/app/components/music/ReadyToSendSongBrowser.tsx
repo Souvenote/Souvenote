@@ -6,7 +6,7 @@ import { useMusicStore } from '@/stores/music-store';
 import WaveformPlayer from './WaveformPlayer';
 
 export default function ReadyToSendSongBrowser() {
-  const { error, isStartingGeneration, selectPremadeSong, setStep } = useMusicStore();
+  const { error, isStartingGeneration, selectPremadeSong, setCreationChoiceView, setStep } = useMusicStore();
   const [songs, setSongs] = useState<PremadeSongRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -84,6 +84,11 @@ export default function ReadyToSendSongBrowser() {
     [selectedMood, selectedOccasion, songs],
   );
 
+  const handleBack = () => {
+    setCreationChoiceView('entry');
+    setStep('creation_choice');
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
@@ -95,7 +100,7 @@ export default function ReadyToSendSongBrowser() {
             </p>
           </div>
           <button
-            onClick={() => setStep('creation_choice')}
+            onClick={handleBack}
             className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50"
           >
             Back

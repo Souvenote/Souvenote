@@ -27,7 +27,7 @@ const LYRICAL_THEMES = [
 const INSTRUMENTATION_OPTIONS = ['Acoustic', 'Electronic', 'Orchestral', 'Mixed'];
 
 export default function GuidedQuestionnaire() {
-  const { startGeneration, setStep, isStartingGeneration } = useMusicStore();
+  const { startGeneration, setCreationChoiceView, setStep, isStartingGeneration } = useMusicStore();
 
   const [occasion, setOccasion] = useState('');
   const [mood, setMood] = useState('');
@@ -42,7 +42,13 @@ export default function GuidedQuestionnaire() {
 
   const canSubmit = occasion && mood && genre;
 
+  const handleBack = () => {
+    setCreationChoiceView('create_own');
+    setStep('creation_choice');
+  };
+
   const handleSubmit = async () => {
+    setCreationChoiceView('create_own');
     startGeneration({
       mode: 'guided',
       occasion,
@@ -93,12 +99,13 @@ export default function GuidedQuestionnaire() {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-8">
         <button
-          onClick={() => setStep('creation_choice')}
-          className="text-gray-400 hover:text-gray-600 mb-4 cursor-pointer"
+          onClick={handleBack}
+          className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-gray-600 cursor-pointer"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
+          Back
         </button>
 
         <h2 className="text-2xl font-bold mb-1">Guided Song Creation</h2>

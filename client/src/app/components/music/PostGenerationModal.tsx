@@ -8,14 +8,23 @@ interface PostGenerationModalProps {
 }
 
 export default function PostGenerationModal({ onUseSong }: PostGenerationModalProps) {
-  const { generatedSong, setStep, error } = useMusicStore();
+  const { generatedSong, setCreationChoiceView, setStep, error } = useMusicStore();
 
   if (!generatedSong) return null;
 
   const handleUseSong = async () => onUseSong();
 
   const handleTryAgain = () => {
-    setStep(generatedSong.generationMethod === 'premade' ? 'premade_browse' : 'creation_choice');
+    if (generatedSong.generationMethod === 'premade') {
+      setCreationChoiceView('entry');
+      setStep('premade_browse');
+      return;
+    }
+
+    setCreationChoiceView(
+      generatedSong.generationMethod === 'card_based' ? 'entry' : 'create_own',
+    );
+    setStep('creation_choice');
   };
 
   return (

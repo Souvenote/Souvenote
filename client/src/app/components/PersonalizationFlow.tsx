@@ -106,7 +106,7 @@ export default function PersonalizationFlow({
                         Step {step} of 4 — {STEP_LABELS[step - 1]}
                         {format && (
                             <span className="ml-2 font-medium text-gray-600">
-                                · {format === 'physical' ? 'Physical CDN $9.99' : 'Digital CDN $2.99'}
+                                · Physical CDN $9.99
                             </span>
                         )}
                     </p>

@@ -7,9 +7,10 @@ interface AddSongModalProps {
 }
 
 export default function AddSongModal({ onSkip }: AddSongModalProps) {
-  const { setStep } = useMusicStore();
+  const { setCreationChoiceView, setStep } = useMusicStore();
 
   const handleAddSong = () => {
+    setCreationChoiceView('entry');
     setStep('creation_choice');
   };
 

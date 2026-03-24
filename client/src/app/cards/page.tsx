@@ -7,7 +7,9 @@ import { Search, ChevronLeft, Star, Heart, Send } from 'lucide-react';
 import PersonalizationModal, { type Card } from '../components/PersonalizationModal';
 import FormatModal, { type CardFormat } from '../components/FormatModal';
 import ReadyCardMessageModal from '../components/ReadyCardMessageModal';
-import { cardTemplatesApi, type CardTemplateRecord } from '@/lib/api';
+import PricingModal from '../components/PricingModal';
+import { useAuth } from '@/context/AuthContext';
+import { cardTemplatesApi, usersApi, type CardTemplateRecord } from '@/lib/api';
 
 type TemplateAction = 'select' | 'personalize' | 'ready_send';
 
@@ -24,6 +26,13 @@ interface PersonalizationData {
 interface MarketplaceCard extends Card {
   basePrice: number;
   badgeLabel?: string;
+}
+
+const TEMPLATE_FLOW_PRICE_CAD = 9.99;
+const READY_TO_SEND_PRICE_CAD = 6.99;
+
+function formatCadPrice(price: number) {
+  return `CDN $${price.toFixed(2)}`;
 }
 
 function mapTemplateToCard(template: CardTemplateRecord): MarketplaceCard {
@@ -55,6 +64,7 @@ function buildMusicSearchParams(
     caption?: string;
     birthday?: string;
     fontStyle?: string;
+    selectedPriceCad?: number;
   },
 ) {
   const designPromptParts = [
@@ -97,12 +107,17 @@ function buildMusicSearchParams(
     params.set('fontStyle', options.fontStyle);
   }
 
+  if (typeof options.selectedPriceCad === 'number' && Number.isFinite(options.selectedPriceCad)) {
+    params.set('selectedPriceCad', options.selectedPriceCad.toFixed(2));
+  }
+
   return params;
 }
 
 function CardsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, refreshUser } = useAuth();
   const readyOnly = searchParams.get('ready') === 'true';
   const [activeFilter, setActiveFilter] = useState('All');
   const [search, setSearch] = useState('');
@@ -116,6 +131,9 @@ function CardsPageContent() {
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(readyOnly ? 8 : 10);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [pendingCreditCard, setPendingCreditCard] = useState<MarketplaceCard | null>(null);
+  const [checkingImageCreditsForCardId, setCheckingImageCreditsForCardId] = useState<string | number | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -176,6 +194,17 @@ function CardsPageContent() {
     setFormatModalOpen(true);
   };
 
+  const getFreshImageCredits = async () => {
+    try {
+      const profile = await usersApi.getMe();
+      return typeof profile.imageCreditBalance === 'number'
+        ? profile.imageCreditBalance
+        : (user?.imageCreditBalance ?? 0);
+    } catch {
+      return user?.imageCreditBalance ?? 0;
+    }
+  };
+
   const closeFormatSelection = () => {
     setFormatModalOpen(false);
     setPendingAction(null);
@@ -203,6 +232,7 @@ function CardsPageContent() {
     if (pendingAction === 'select') {
       const params = buildMusicSearchParams(format, pendingCard, {
         sourceFlow: 'template',
+        selectedPriceCad: TEMPLATE_FLOW_PRICE_CAD,
       });
 
       resetTemplateSelection();
@@ -221,7 +251,43 @@ function CardsPageContent() {
   };
 
   const handlePersonalize = (card: MarketplaceCard) => {
-    beginTemplateAction('personalize', card);
+    if (checkingImageCreditsForCardId !== null) {
+      return;
+    }
+
+    setCheckingImageCreditsForCardId(card.id);
+
+    void (async () => {
+      try {
+        const imageCredits = await getFreshImageCredits();
+
+        if (imageCredits < 1) {
+          setPendingCreditCard(card);
+          setShowPricingModal(true);
+          return;
+        }
+
+        beginTemplateAction('personalize', card);
+      } finally {
+        setCheckingImageCreditsForCardId(null);
+      }
+    })();
+  };
+
+  const handlePricingModalClose = async () => {
+    setShowPricingModal(false);
+
+    const imageCredits = await getFreshImageCredits();
+    await refreshUser();
+
+    if (pendingCreditCard && imageCredits >= 1) {
+      const card = pendingCreditCard;
+      setPendingCreditCard(null);
+      beginTemplateAction('personalize', card);
+      return;
+    }
+
+    setPendingCreditCard(null);
   };
 
   const handleSelectAsIs = (card: MarketplaceCard) => {
@@ -249,6 +315,7 @@ function CardsPageContent() {
       caption: data.caption,
       birthday: data.birthday,
       fontStyle: data.fontStyle,
+      selectedPriceCad: TEMPLATE_FLOW_PRICE_CAD,
     });
 
     resetTemplateSelection();
@@ -264,6 +331,7 @@ function CardsPageContent() {
     const params = buildMusicSearchParams(selectedFormat, readyMessageCard, {
       sourceFlow: 'ready',
       personalMessage: message,
+      selectedPriceCad: READY_TO_SEND_PRICE_CAD,
     });
 
     resetTemplateSelection();
@@ -299,7 +367,13 @@ function CardsPageContent() {
         open={formatModalOpen}
         onClose={closeFormatSelection}
         onSelect={handleFormatSelect}
+        price={formatCadPrice(pendingAction === 'ready_send' ? READY_TO_SEND_PRICE_CAD : TEMPLATE_FLOW_PRICE_CAD)}
+        subtitle={pendingAction === 'ready_send' ? 'ready to send with your message' : 'AI personalization available after this step'}
       />
+
+      {showPricingModal && (
+        <PricingModal onClose={() => void handlePricingModalClose()} />
+      )}
 
       {selectedCard && (
         <PersonalizationModal
@@ -318,7 +392,7 @@ function CardsPageContent() {
         />
       )}
 
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 shadow-sm">
+      <div className="sticky top-[73px] z-30 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 shadow-sm">
         <Link
           href="/create"
           className="flex items-center gap-2 text-sm font-bold text-gray-500 transition-colors hover:text-black"
@@ -368,7 +442,7 @@ function CardsPageContent() {
               {featuredCards.map((card) => (
                 <div key={card.id} className="group space-y-3">
                   <div
-                    onClick={() => handlePersonalize(card)}
+                    onClick={() => void handlePersonalize(card)}
                     className="relative aspect-[5/7] cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md"
                   >
                     <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 text-4xl">
@@ -390,10 +464,11 @@ function CardsPageContent() {
                         Use as is
                       </button>
                       <button
-                        onClick={() => handlePersonalize(card)}
-                        className="flex-1 rounded-lg bg-black py-2 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-gray-800"
+                        onClick={() => void handlePersonalize(card)}
+                        disabled={checkingImageCreditsForCardId === card.id}
+                        className="flex-1 rounded-lg bg-black py-2 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
                       >
-                        Personalize
+                        {checkingImageCreditsForCardId === card.id ? 'Checking...' : 'Personalize'}
                       </button>
                     </div>
                   </div>
@@ -404,7 +479,7 @@ function CardsPageContent() {
         </section>
       )}
 
-      <div className="sticky top-[73px] z-20 overflow-x-auto border-y border-gray-100 bg-[#fafafa]/80 px-6 py-4 backdrop-blur-md no-scrollbar">
+      <div className="sticky top-[146px] z-20 overflow-x-auto border-y border-gray-100 bg-[#fafafa]/80 px-6 py-4 backdrop-blur-md no-scrollbar">
         <div className="mx-auto flex max-w-7xl gap-2">
           {categories.map((category) => (
             <button
@@ -507,11 +582,12 @@ function CardsPageContent() {
                           Use as is
                         </button>
                         <button
-                          onClick={() => handlePersonalize(card)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-black py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-gray-800"
+                          onClick={() => void handlePersonalize(card)}
+                          disabled={checkingImageCreditsForCardId === card.id}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-black py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
                         >
                           <Heart className="h-3 w-3" />
-                          Personalize
+                          {checkingImageCreditsForCardId === card.id ? 'Checking...' : 'Personalize'}
                         </button>
                       </>
                     ) : (

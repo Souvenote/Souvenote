@@ -7,6 +7,7 @@ let activePollTimer: ReturnType<typeof setTimeout> | null = null;
 let activePollSession = 0;
 
 export type GenerationMethod = 'card_based' | 'guided' | 'manual_prompt' | 'premade';
+export type CreationChoiceView = 'entry' | 'create_own';
 export type FlowStep =
   | 'initial'         // Add Song / Skip modal
   | 'credits_check'   // Insufficient credits
@@ -36,6 +37,7 @@ export interface GeneratedSong {
 interface MusicState {
   // Flow state
   currentStep: FlowStep;
+  creationChoiceView: CreationChoiceView;
   
   // Generation
   currentSongId: string | null;
@@ -57,6 +59,7 @@ interface MusicState {
 
   // Actions
   setStep: (step: FlowStep) => void;
+  setCreationChoiceView: (view: CreationChoiceView) => void;
   setCardContext: (cardId: string | null, designPrompt: string | null) => void;
   setCredits: (image: number, song: number) => void;
   fetchCredits: () => Promise<void>;
@@ -72,6 +75,7 @@ interface MusicState {
 
 export const useMusicStore = create<MusicState>((set, get) => ({
   currentStep: 'initial',
+  creationChoiceView: 'entry',
   currentSongId: null,
   generatedSong: null,
   generationMethod: null,
@@ -84,6 +88,8 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   error: null,
 
   setStep: (step) => set({ currentStep: step, error: null }),
+
+  setCreationChoiceView: (view) => set({ creationChoiceView: view }),
 
   setCardContext: (cardId, designPrompt) =>
     set({ cardId, cardDesignPrompt: designPrompt }),
@@ -280,6 +286,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     get().stopPolling();
     set({
       currentStep: 'initial',
+      creationChoiceView: 'entry',
       currentSongId: null,
       generatedSong: null,
       generationMethod: null,

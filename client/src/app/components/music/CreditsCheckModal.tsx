@@ -12,6 +12,10 @@ export default function CreditsCheckModal({ onSkip }: CreditsCheckModalProps) {
   const [showPricing, setShowPricing] = useState(false);
   const { songCredits, setStep } = useMusicStore();
 
+  const handleBack = () => {
+    setStep('creation_choice');
+  };
+
   // If user somehow got credits (e.g. purchased), continue
   useEffect(() => {
     if (songCredits >= 1) {
@@ -54,6 +58,12 @@ export default function CreditsCheckModal({ onSkip }: CreditsCheckModalProps) {
               className="w-full py-3.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer"
             >
               Choose a Ready Song Instead
+            </button>
+            <button
+              onClick={handleBack}
+              className="w-full py-3.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              Back
             </button>
             <button
               onClick={onSkip}
