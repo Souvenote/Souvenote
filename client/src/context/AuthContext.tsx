@@ -9,6 +9,9 @@ import { Hub } from 'aws-amplify/utils';
 interface AuthUser {
   userId: string;
   email: string;
+  name?: string;
+  imageCreditBalance?: number;
+  songCreditBalance?: number;
 }
 
 interface AuthContextValue {
@@ -33,20 +36,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const cognitoUser = await getCurrentUser();
       let email = cognitoUser.signInDetails?.loginId ?? cognitoUser.username;
+      let name = '';
 
       try {
-        await fetchAuthSession();
+        const session = await fetchAuthSession();
+        const token = session.tokens?.accessToken?.toString();
         const attributes = await fetchUserAttributes();
         if (attributes.email) {
           email = attributes.email;
         }
-      } catch {
-        // Attributes may not be available yet for federated users
+        if (attributes.name) {
+          name = attributes.name;
+        }
+
+        // Fetch profile from backend to get credits
+        if (token) {
+          try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/users/me`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            if (response.ok) {
+              const profile = await response.json();
+              setUser({
+                userId: cognitoUser.userId,
+                email,
+                name: profile.name || name,
+                imageCreditBalance: profile.imageCreditBalance,
+                songCreditBalance: profile.songCreditBalance,
+              });
+              return;
+            }
+          } catch (fetchErr) {
+            console.warn('Backend server unreachable. Using basic Cognito profile.');
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user attributes/session:', err);
       }
 
       setUser({
         userId: cognitoUser.userId,
         email,
+        name,
+        imageCreditBalance: 1, // Mock fallback
+        songCreditBalance: 1,  // Mock fallback
       });
     } catch {
       setUser(null);

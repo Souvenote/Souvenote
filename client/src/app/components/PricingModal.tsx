@@ -2,81 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-const CARD_PACKS = [
-    {
-        label: 'Single Card',
-        price: '$7.99 CAD',
-        savings: null,
-        badge: null,
-        mailedCards: 1,
-        images: 8,
-        songs: 3,
-    },
-    {
-        label: '2 Card Pack',
-        price: '$13.99 CAD',
-        savings: '12% savings',
-        badge: null,
-        mailedCards: 2,
-        images: 16,
-        songs: 6,
-    },
-    {
-        label: '3 Card Pack',
-        price: '$19.99 CAD',
-        savings: '17% savings',
-        badge: null,
-        mailedCards: 3,
-        images: 24,
-        songs: 9,
-    },
-    {
-        label: '4 Card Pack',
-        price: '$24.99 CAD',
-        savings: '22% savings',
-        badge: 'Most Popular',
-        mailedCards: 4,
-        images: 32,
-        songs: 12,
-    },
-    {
-        label: '5 Card Pack',
-        price: '$29.99 CAD',
-        savings: '25% savings',
-        badge: 'Best Value',
-        mailedCards: 5,
-        images: 40,
-        songs: 15,
-    },
-];
-
-const CREDIT_PACKS = [
-    {
-        label: 'Starter',
-        price: '$1.69 CAD',
-        savings: null,
-        badge: null,
-        images: 8,
-        songs: 3,
-    },
-    {
-        label: 'Creator',
-        price: '$2.98 CAD',
-        savings: '12% savings',
-        badge: 'Most Popular',
-        images: 16,
-        songs: 6,
-    },
-    {
-        label: 'Studio',
-        price: '$3.87 CAD',
-        savings: '24% savings',
-        badge: null,
-        images: 24,
-        songs: 9,
-    },
-];
+import { purchasesApi } from '@/lib/api';
+import { CARD_PACKS, CREDIT_PACKS, type PurchasePack } from '@/lib/purchase-packs';
+import { useMusicStore } from '@/stores/music-store';
 
 interface PricingModalProps {
     onClose: () => void;
@@ -84,8 +12,42 @@ interface PricingModalProps {
 
 export default function PricingModal({ onClose }: PricingModalProps) {
     const router = useRouter();
+    const { fetchCredits } = useMusicStore();
     const [selectedCard, setSelectedCard] = useState<number | null>(null);
     const [selectedCredit, setSelectedCredit] = useState<number | null>(null);
+    const [isPurchasing, setIsPurchasing] = useState(false);
+    const [purchaseError, setPurchaseError] = useState<string | null>(null);
+
+    const selectedPack: PurchasePack | null =
+        selectedCard !== null
+            ? CARD_PACKS[selectedCard]
+            : selectedCredit !== null
+                ? CREDIT_PACKS[selectedCredit]
+                : null;
+
+    const handlePurchase = async () => {
+        if (!selectedPack || isPurchasing) {
+            return;
+        }
+
+        setIsPurchasing(true);
+        setPurchaseError(null);
+
+        try {
+            await purchasesApi.createSession({
+                packType: selectedPack.packType,
+                packId: selectedPack.id,
+            });
+            await fetchCredits();
+            onClose();
+        } catch (error) {
+            setPurchaseError(
+                error instanceof Error ? error.message : 'Could not complete this purchase right now.',
+            );
+        } finally {
+            setIsPurchasing(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -120,7 +82,11 @@ export default function PricingModal({ onClose }: PricingModalProps) {
                             {CARD_PACKS.map((pack, i) => (
                                 <button
                                     key={pack.label}
-                                    onClick={() => setSelectedCard(i)}
+                                    onClick={() => {
+                                        setSelectedCard(i);
+                                        setSelectedCredit(null);
+                                        setPurchaseError(null);
+                                    }}
                                     className={`relative flex flex-col rounded-xl border-2 transition-all text-left overflow-hidden ${
                                         selectedCard === i
                                             ? 'border-black shadow-md'
@@ -184,7 +150,11 @@ export default function PricingModal({ onClose }: PricingModalProps) {
                             {CREDIT_PACKS.map((pack, i) => (
                                 <button
                                     key={pack.label}
-                                    onClick={() => setSelectedCredit(i)}
+                                    onClick={() => {
+                                        setSelectedCredit(i);
+                                        setSelectedCard(null);
+                                        setPurchaseError(null);
+                                    }}
                                     className={`relative flex flex-col rounded-xl border-2 transition-all text-left overflow-hidden flex-1 ${
                                         selectedCredit === i
                                             ? 'border-black shadow-md'
@@ -235,7 +205,7 @@ export default function PricingModal({ onClose }: PricingModalProps) {
                                 Choose a &ldquo;Ready to Send&rdquo; card from our marketplace
                             </p>
                             <p className="text-xs text-gray-500">
-                                Add your own message, no AI customization. Starting at $6.49.
+                                Add your own message with no AI customization. Physical cards start at $6.99 CAD.
                             </p>
                         </div>
                         <button
@@ -250,13 +220,20 @@ export default function PricingModal({ onClose }: PricingModalProps) {
                     </div>
 
                     {/* Continue button */}
+                    {purchaseError && (
+                        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                            {purchaseError}
+                        </div>
+                    )}
+
                     {(selectedCard !== null || selectedCredit !== null) && (
                         <div className="flex justify-end">
                             <button
-                                onClick={onClose}
-                                className="bg-black text-white text-sm font-medium px-8 py-3 rounded-lg hover:bg-gray-800 transition-colors"
+                                onClick={() => void handlePurchase()}
+                                disabled={isPurchasing}
+                                className="bg-black text-white text-sm font-medium px-8 py-3 rounded-lg hover:bg-gray-800 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                Continue →
+                                {isPurchasing ? 'Processing...' : 'Purchase Pack'}
                             </button>
                         </div>
                     )}

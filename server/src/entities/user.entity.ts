@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 
 @Entity('users')
@@ -17,17 +18,29 @@ export class User {
   @Column({ name: 'password_hash' })
   passwordHash!: string;
 
-  @Column({ name: 'display_name', nullable: true })
-  displayName!: string | null;
+  @Column({ name: 'display_name', type: 'varchar', nullable: true })
+  displayName?: string | null;
 
   @Column({
-    name: 'credit_balance',
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
+    name: 'image_credit_balance',
+    type: 'integer',
     default: 0,
   })
-  creditBalance!: number;
+  imageCreditBalance!: number;
+
+  @Column({
+    name: 'song_credit_balance',
+    type: 'integer',
+    default: 0,
+  })
+  songCreditBalance!: number;
+
+  @Column({
+    name: 'mailed_card_balance',
+    type: 'integer',
+    default: 0,
+  })
+  mailedCardBalance!: number;
 
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
