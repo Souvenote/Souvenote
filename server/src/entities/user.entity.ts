@@ -9,16 +9,16 @@ import {
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true })
-  email: string;
+  email!: string;
 
   @Column({ name: 'password_hash' })
-  passwordHash: string;
+  passwordHash!: string;
 
   @Column({ name: 'display_name', nullable: true })
-  displayName: string | null;
+  displayName!: string | null;
 
   @Column({
     name: 'credit_balance',
@@ -27,15 +27,14 @@ export class User {
     scale: 2,
     default: 0,
   })
-  creditBalance: number;
+  creditBalance!: number;
 
   @Column({ name: 'is_active', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }
-

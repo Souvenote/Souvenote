@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { CardFormat } from './FormatModal';
+import AiChatBot from './AiChatBot';
 
 const FONT_STYLES = [
     'Classic Serif',
@@ -22,34 +23,36 @@ export default function PersonalizationFlow({ open, format, onClose, onComplete 
     const [step, setStep] = useState(1);
     const [photo, setPhoto] = useState<File | null>(null);
     const [attested, setAttested] = useState(false);
-    const [name, setName] = useState('');
     const [caption, setCaption] = useState('');
     const [message, setMessage] = useState('');
     const [fontStyle, setFontStyle] = useState('Classic Serif');
+    const [sendDate, setSendDate] = useState('');
 
     if (!open) return null;
+
+    const TOTAL_STEPS = 5;
 
     const reset = () => {
         setStep(1);
         setPhoto(null);
         setAttested(false);
-        setName('');
         setCaption('');
         setMessage('');
         setFontStyle('Classic Serif');
+        setSendDate('');
         onClose();
     };
 
-    const STEP_LABELS = ['Photo', 'Rights', 'Text', 'Confirm'];
+    const STEP_LABELS = ['Photo', 'Rights', 'Caption', 'Message', 'Confirm'];
 
     return (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full space-y-6">
+            <div className="bg-white rounded-2xl p-8 max-w-md w-full space-y-6 max-h-[90vh] overflow-y-auto">
 
                 {/* Progress bar */}
                 <div className="space-y-2">
                     <div className="flex gap-1.5">
-                        {[1, 2, 3, 4].map((s) => (
+                        {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((s) => (
                             <div
                                 key={s}
                                 className={`flex-1 h-1 rounded-full transition-colors duration-300 ${
@@ -59,7 +62,7 @@ export default function PersonalizationFlow({ open, format, onClose, onComplete 
                         ))}
                     </div>
                     <p className="text-xs text-gray-400">
-                        Step {step} of 4 — {STEP_LABELS[step - 1]}
+                        Step {step} of {TOTAL_STEPS} — {STEP_LABELS[step - 1]}
                         {format && (
                             <span className="ml-2 font-medium text-gray-600">
                                 · {format === 'physical' ? 'Physical CDN $9.99' : 'Digital CDN $2.99'}
@@ -138,7 +141,7 @@ export default function PersonalizationFlow({ open, format, onClose, onComplete 
                                 onClick={() => setStep(3)}
                                 className="border border-gray-300 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
                             >
-                                Skip — Customize Text
+                                Skip
                             </button>
                             <button
                                 onClick={() => setStep(3)}
@@ -151,46 +154,27 @@ export default function PersonalizationFlow({ open, format, onClose, onComplete 
                     </div>
                 )}
 
-                {/* ── Step 3: Name & Caption ── */}
+                {/* ── Step 3: Caption ── */}
                 {step === 3 && (
                     <div className="space-y-4">
                         <div className="text-center space-y-1.5">
-                            <h3 className="font-bold text-lg">Customize Text</h3>
+                            <h3 className="font-bold text-lg">Add a Caption</h3>
                             <p className="text-sm text-gray-500 leading-relaxed">
-                                Enter the name or caption for this card. We&apos;ll do the rest and send it off in 48 hours.
+                                Add a caption for the front of your card.
                             </p>
                         </div>
 
                         <div className="space-y-3">
                             <div>
-                                <label className="text-xs font-medium text-gray-500 mb-1 block">Name</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Sarah"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors"
-                                />
-                            </div>
-                            <div>
                                 <label className="text-xs font-medium text-gray-500 mb-1 block">Caption</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. Happy Birthday!"
+                                    placeholder="Happy Birthday Amanda"
                                     value={caption}
                                     onChange={(e) => setCaption(e.target.value)}
                                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors"
                                 />
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-gray-500 mb-1 block">Add Personal Message</label>
-                                <textarea
-                                    placeholder="Write a message for inside the card..."
-                                    value={message}
-                                    onChange={(e) => setMessage(e.target.value)}
-                                    rows={3}
-                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors resize-none"
-                                />
+                                <p className="text-xs text-gray-400 mt-1">Use the Caption Generator for suggestions</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-gray-500 mb-1 block">Font Style</label>
@@ -206,9 +190,15 @@ export default function PersonalizationFlow({ open, format, onClose, onComplete 
                             </div>
                         </div>
 
+                        {/* Caption Generator Chatbot */}
+                        <AiChatBot
+                            type="caption"
+                            onSelect={(text) => setCaption(text)}
+                        />
+
                         <button
                             onClick={() => setStep(4)}
-                            disabled={!name && !caption}
+                            disabled={!caption}
                             className="w-full bg-black text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             Continue
@@ -216,8 +206,74 @@ export default function PersonalizationFlow({ open, format, onClose, onComplete 
                     </div>
                 )}
 
-                {/* ── Step 4: Confirmation ── */}
+                {/* ── Step 4: Personal Message ── */}
                 {step === 4 && (
+                    <div className="space-y-4">
+                        <div className="text-center space-y-1.5">
+                            <h3 className="font-bold text-lg">Personal Message</h3>
+                            <p className="text-sm text-gray-500 leading-relaxed">
+                                Write a personal message for inside the card.
+                            </p>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-xs font-medium text-gray-500 mb-1 block">Your Message</label>
+                                <textarea
+                                    placeholder="Use the Message Generator for suggestions"
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    rows={3}
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors resize-none"
+                                />
+                            </div>
+
+                            {/* Invite Friends */}
+                            <button
+                                type="button"
+                                className="w-full flex items-center justify-center gap-2 border border-gray-300 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                </svg>
+                                Invite friends to sign
+                            </button>
+
+                            {/* Choose a Date */}
+                            <div>
+                                <label className="text-xs font-medium text-gray-500 mb-1 block">
+                                    Choose a date
+                                </label>
+                                <p className="text-xs text-gray-400 mb-1.5">
+                                    We&apos;ll delay sending your card so everyone has time to sign.
+                                </p>
+                                <input
+                                    type="date"
+                                    value={sendDate}
+                                    onChange={(e) => setSendDate(e.target.value)}
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400 transition-colors"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Message Generator Chatbot */}
+                        <AiChatBot
+                            type="message"
+                            onSelect={(text) => setMessage(text)}
+                        />
+
+                        {/* Create Card button */}
+                        <button
+                            onClick={() => setStep(5)}
+                            className="w-full bg-black text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
+                        >
+                            Create Card
+                        </button>
+                    </div>
+                )}
+
+                {/* ── Step 5: Confirmation ── */}
+                {step === 5 && (
                     <div className="space-y-6">
                         <div className="text-center space-y-2">
                             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
@@ -234,7 +290,7 @@ export default function PersonalizationFlow({ open, format, onClose, onComplete 
 
                         <div className="grid grid-cols-2 gap-3">
                             <button
-                                onClick={() => setStep(3)}
+                                onClick={() => setStep(4)}
                                 className="border border-gray-300 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
                             >
                                 Go Back
@@ -249,8 +305,8 @@ export default function PersonalizationFlow({ open, format, onClose, onComplete 
                     </div>
                 )}
 
-                {/* Cancel link (steps 1–3 only) */}
-                {step < 4 && (
+                {/* Cancel link (steps 1–4 only) */}
+                {step < 5 && (
                     <button
                         onClick={reset}
                         className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors"
