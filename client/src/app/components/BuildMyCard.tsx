@@ -211,11 +211,14 @@ export default function BuildMyCard() {
       formData.lighting ? `${formData.lighting.toLowerCase()} lighting` : null,
       formData.framing ? `${formData.framing.toLowerCase()} framing` : null,
       formData.orientation ? `${formData.orientation} composition` : null,
-      formData.referenceImages.length > 0 ? 'based on uploaded reference images' : null,
-      formData.identityPreservation ? 'preserve subject identity from references' : null,
+      formData.referenceImages.length > 0 ? 'based on uploaded reference images.' : null,
+      formData.identityPreservation ? 'preserve subject identity from references.' : null,
       formData.textContent ? `front text says "${formData.textContent}"` : null,
       formData.placement ? `text placement ${formData.placement}` : null,
-      formData.grounding ? 'grounded in real-world details' : null,
+      formData.grounding ? 'grounded in real-world details.' : null,
+      // Print-Ready Compositional Safety Directives
+      'Center all focal points, characters, and essential details to provide a natural safety margin within the artwork.',
+      'Background must extend fully to all four edges of the image without any white borders or frames.'
     ];
 
     return promptParts.filter(Boolean).join(', ');
@@ -269,7 +272,7 @@ export default function BuildMyCard() {
 
 
 
-  const handleCreateNow = () => {
+  const handleCreateNow = async () => {
     if (isCheckingCredits) {
       return;
     }
@@ -278,12 +281,41 @@ export default function BuildMyCard() {
         setPricingOpen(true);
         return;
     }
+
     setPhase('generating');
-    // Simulate generation delay
-    setTimeout(() => {
-        setGeneratedImageUrl('https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=2070&auto=format&fit=crop'); // Mock URL
+    
+    try {
+        const formDataPayload = new FormData();
+        const fullPrompt = buildDesignPrompt();
+        formDataPayload.append('prompt', fullPrompt);
+        
+        // Comprehensive Negative String for Legal, Print Quality, Layout, and Safety Parameters
+        const NEGATIVE_PROMPT = "white border, white frame, padding, white margin, letterbox, blurry, low resolution, pixelated, grain, noise, artifacts, distorted anatomy, extra fingers, bad hands, Disney, Marvel, Star Wars, Starbucks, Coca-Cola, logos, trademarked, celebrity, signature, watermark, NSFW, violence, gore";
+        formDataPayload.append('negative_prompt', NEGATIVE_PROMPT);
+
+        // If the user uploaded reference images, append the first one to trigger Image-to-Image variations!
+        if (formData.referenceImages.length > 0) {
+            formDataPayload.append('image', formData.referenceImages[0]);
+        }
+
+        const response = await fetch('/api/recraft', {
+            method: 'POST',
+            body: formDataPayload,
+        });
+
+        if (!response.ok) {
+            throw new Error("Generation failed");
+        }
+
+        const data = await response.json();
+        setGeneratedImageUrl(data.url);
         setPhase('result');
-    }, 3500);
+    } catch (err) {
+        console.error("Recraft error:", err);
+        // Fallback to error state or retry (using fallback for now so UI doesn't break)
+        alert("Failed to generate custom Recraft image. Please check API keys or try again.");
+        setPhase(2); // kick them back to a previous phase to fix it
+    }
   };
 
 

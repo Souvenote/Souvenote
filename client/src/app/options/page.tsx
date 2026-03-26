@@ -2,391 +2,463 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Layout, Zap, History, Check, Star, CreditCard, Music, Image as ImageIcon } from 'lucide-react';
-import Link from 'next/link';
+import { Check, Zap, Heart, Music, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
-// Simulate credit balance
-// const USER_CREDITS = { images: 0, songs: 0 };
-// const hasCredits = USER_CREDITS.images > 0 || USER_CREDITS.songs > 0;
-
-const CARD_PACKS = [
-    {
-        name: 'Single Card',
-        price: 8.99,
-        perCard: 8.99,
-        savings: null,
-        cards: 1,
-        images: 8,
-        songs: 3,
-        highlight: false,
-    },
-    {
-        name: '2 Card Pack',
-        price: 16.99,
-        perCard: 8.50,
-        savings: '5.5%',
-        cards: 2,
-        images: 16,
-        songs: 6,
-        highlight: false,
-    },
-    {
-        name: '3 Card Pack',
-        price: 23.99,
-        perCard: 8.00,
-        savings: '11.0%',
-        cards: 3,
-        images: 24,
-        songs: 9,
-        highlight: false,
-    },
-    {
-        name: '4 Card Pack',
-        price: 29.99,
-        perCard: 7.50,
-        savings: '16.6%',
-        cards: 4,
-        images: 32,
-        songs: 12,
-        highlight: true,
-        badge: 'Most Popular',
-    },
-    {
-        name: '5 Card Pack',
-        price: 34.99,
-        perCard: 7.00,
-        savings: '22.2%',
-        cards: 5,
-        images: 40,
-        songs: 15,
-        highlight: false,
-        badge: 'Best Value',
-    },
+const templateThumbnails = [
+  'Horoscope',
+  'On This Day',
+  'Comic Card',
+  'Book/Movie Cover',
+  'Mental Health',
+  'Couples Cards',
 ];
 
-const CREDIT_PACKS = [
-    {
-        name: 'Starter',
-        price: 1.69,
-        images: 8,
-        songs: 3,
-        savings: null,
-    },
-    {
-        name: 'Creator',
-        price: 2.98,
-        images: 16,
-        songs: 6,
-        savings: '12%',
-        highlight: true,
-        badge: 'Most Popular',
-    },
-    {
-        name: 'Studio',
-        price: 3.87,
-        images: 24,
-        songs: 9,
-        savings: '24%',
-    },
+const cardPacks = [
+  {
+    id: 'single',
+    name: 'Single',
+    price: 8.99,
+    perCard: 8.99,
+    savings: null,
+    badge: null,
+    cards: '1 Card',
+    images: 'Unlimited',
+    songs: 'Unlimited',
+  },
+  {
+    id: 'twopack',
+    name: '2-Pack',
+    price: 16.99,
+    perCard: 8.5,
+    savings: '$0.98 saved',
+    badge: null,
+    cards: '2 Cards',
+    images: 'Unlimited',
+    songs: 'Unlimited',
+  },
+  {
+    id: 'threepack',
+    name: '3-Pack',
+    price: 23.99,
+    perCard: 8.0,
+    savings: '$2.93 saved',
+    badge: null,
+    cards: '3 Cards',
+    images: 'Unlimited',
+    songs: 'Unlimited',
+  },
+  {
+    id: 'fourpack',
+    name: '4-Pack',
+    price: 29.99,
+    perCard: 7.5,
+    savings: '$5.97 saved',
+    badge: 'Most Popular',
+    cards: '4 Cards',
+    images: 'Unlimited',
+    songs: 'Unlimited',
+  },
+  {
+    id: 'fivepack',
+    name: '5-Pack',
+    price: 34.99,
+    perCard: 7.0,
+    savings: '$9.96 saved',
+    badge: 'Best Value',
+    cards: '5 Cards',
+    images: 'Unlimited',
+    songs: 'Unlimited',
+  },
 ];
 
-const TEMPLATE_THUMBNAILS = [
-    { name: 'Horoscope', icon: '♈' },
-    { name: 'On This Day', icon: '📅' },
-    { name: 'Comic Card', icon: '🦸' },
-    { name: 'Movie Cover', icon: '🎬' },
-    { name: 'Mental Health', icon: '🧠' },
-    { name: 'Couples Cards', icon: '❤️' },
+const creditPacks = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: 1.69,
+    savings: null,
+    badge: null,
+    credits: '50 Credits',
+    duration: 'Valid for 90 days',
+  },
+  {
+    id: 'creator',
+    name: 'Creator',
+    price: 2.98,
+    savings: '$0.40 saved',
+    badge: 'Most Popular',
+    credits: '100 Credits',
+    duration: 'Valid for 90 days',
+  },
+  {
+    id: 'studio',
+    name: 'Studio',
+    price: 3.87,
+    savings: '$0.82 saved',
+    badge: null,
+    credits: '150 Credits',
+    duration: 'Valid for 90 days',
+  },
 ];
 
 export default function OptionsPage() {
-    const { user } = useAuth();
-    const router = useRouter();
-    const pricingRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  const router = useRouter();
+  const pricingRef = useRef<HTMLDivElement>(null);
 
-    const userCredits = {
-        images: user?.imageCreditBalance ?? 0,
-        songs: user?.songCreditBalance ?? 0
-    };
-    const hasCredits = userCredits.images > 0 || userCredits.songs > 0;
+  const [selectedCardPack, setSelectedCardPack] = useState<string | null>(null);
+  const [selectedCreditPack, setSelectedCreditPack] = useState<string | null>(null);
 
-    const scrollToPricing = () => {
-        pricingRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
+  const userCredits = {
+    images: user?.imageCreditBalance ?? 0,
+    songs: user?.songCreditBalance ?? 0
+  };
+  const hasCredits = userCredits.images > 0 || userCredits.songs > 0;
 
-    const handleOptionClick = (href: string) => {
-        if (hasCredits) {
-            router.push(href);
-        } else {
-            scrollToPricing();
-        }
-    };
+  const scrollToPricing = () => {
+    pricingRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-    return (
-        <main className="min-h-screen bg-white font-sans overflow-x-hidden">
-            {/* Options Hero */}
-            <section className="px-6 py-20 text-center space-y-4 max-w-4xl mx-auto">
-                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight">
-                    How do you want to create your card?
-                </h1>
-                <p className="text-gray-500 text-lg">
-                    Because the card you give, should be as unique as they are.
-                </p>
+  const handleOptionClick = (href: string) => {
+    if (hasCredits) {
+      router.push(href);
+    } else {
+      scrollToPricing();
+    }
+  };
 
-                {/* Credits Display */}
-                {user && (
-                    <div className="pt-6 flex justify-center gap-6">
-                        <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-100">
-                            <ImageIcon className="w-4 h-4 text-blue-600" />
-                            <span className="text-sm font-bold text-blue-900">{userCredits.images} Image Credits</span>
-                        </div>
-                        <div className="flex items-center gap-2 bg-purple-50 px-4 py-2 rounded-full border border-purple-100">
-                            <Music className="w-4 h-4 text-purple-600" />
-                            <span className="text-sm font-bold text-purple-900">{userCredits.songs} Song Credits</span>
-                        </div>
-                    </div>
-                )}
-            </section>
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* Hero Section */}
+      <section className="py-12 px-4 sm:px-6 lg:px-8 bg-white border-b border-gray-200">
+        <div className="max-w-5xl mx-auto text-center">
+          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+            How do you want to create your card?
+          </h1>
+          <p className="text-lg text-gray-600 mb-6">
+            Choose from our curated options or build something entirely new
+          </p>
 
-            {/* Quadrant Layout */}
-            <section className="px-6 pb-24 max-w-6xl mx-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Option 1: Personalize a Card Template */}
-                    <div className="space-y-3">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block ml-6">
-                            Option 1: Personalize a Card Template
-                        </label>
-                        <button 
-                            onClick={() => handleOptionClick('/cards')}
-                            className="w-full h-64 bg-gray-50 border-2 border-transparent hover:border-black rounded-[32px] p-8 flex items-center justify-between transition-all group overflow-hidden relative shadow-sm hover:shadow-xl"
-                        >
-                            <div className="space-y-2 text-left z-10 max-w-[200px]">
-                                <h3 className="text-xl font-bold text-gray-900 group-hover:translate-x-1 transition-transform">Choose a & customize</h3>
-                                <p className="text-xs text-gray-500 leading-relaxed">Choice from our library and make it yours.</p>
-                                <div className="pt-4">
-                                    <span className="bg-black text-white px-4 py-2 rounded-full text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                                        Browse Templates
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-3 gap-2 w-48 relative">
-                                {TEMPLATE_THUMBNAILS.slice(0, 6).map((t, idx) => (
-                                    <div key={idx} className="aspect-[5/7] bg-white border border-gray-100 rounded-lg flex items-center justify-center text-xl shadow-sm transform group-hover:-rotate-2 group-hover:scale-105 transition-all" style={{ transitionDelay: `${idx * 30}ms` }}>
-                                        {t.icon}
-                                    </div>
-                                ))}
-                            </div>
-                        </button>
-                    </div>
-
-                    {/* Option 2: Build My Card */}
-                    <div className="space-y-3">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block ml-6">
-                            Option 2: Build My Card
-                        </label>
-                        <button 
-                            onClick={() => handleOptionClick('/create')}
-                            className="w-full h-64 bg-gray-50 border-2 border-transparent hover:border-black rounded-[32px] p-8 flex items-center justify-between transition-all group overflow-hidden relative shadow-sm hover:shadow-xl"
-                        >
-                            <div className="space-y-2 text-left z-10 max-w-[200px]">
-                                <h3 className="text-xl font-bold text-gray-900 group-hover:translate-x-1 transition-transform">Start from scratch</h3>
-                                <p className="text-xs text-gray-500 leading-relaxed">Answer a few questions and AI will generate.</p>
-                                <div className="pt-4">
-                                    <span className="bg-black text-white px-4 py-2 rounded-full text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                                        Start Generating
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-center w-48">
-                                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                    <Sparkles className="w-12 h-12 text-yellow-400 animate-pulse" />
-                                </div>
-                            </div>
-                        </button>
-                    </div>
-
-                    {/* Option 3: Ready to Send */}
-                    <div className="space-y-3">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block ml-6">
-                            Option 3: Ready to Send
-                        </label>
-                        <button 
-                            onClick={() => handleOptionClick('/cards?ready=true')}
-                            className="w-full h-64 bg-gray-50 border-2 border-transparent hover:border-black rounded-[32px] p-8 flex items-center justify-between transition-all group overflow-hidden relative shadow-sm hover:shadow-xl"
-                        >
-                            <div className="space-y-2 text-left z-10 max-w-[200px]">
-                                <h3 className="text-xl font-bold text-gray-900 group-hover:translate-x-1 transition-transform">Quick & Easy</h3>
-                                <p className="text-xs text-gray-500 leading-relaxed">No customization required. Just add a message.</p>
-                                <div className="pt-4">
-                                    <span className="bg-black text-white px-4 py-2 rounded-full text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                                        View Ready Cards
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-center w-48 gap-3">
-                                <div className="p-4 bg-white rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
-                                    <Zap className="w-8 h-8 text-blue-500" />
-                                </div>
-                                <div className="text-left hidden lg:block">
-                                    <p className="text-xs font-bold text-gray-900">Instant Access</p>
-                                    <p className="text-[10px] text-gray-400">Pre-designed</p>
-                                </div>
-                            </div>
-                        </button>
-                    </div>
-
-                    {/* Option 4: My Cards & Songs */}
-                    <div className="space-y-3">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block ml-6">
-                            Option 4: My Cards & Songs
-                        </label>
-                        <button 
-                            onClick={() => router.push('/my-cards')}
-                            className="w-full h-64 bg-gray-50 border-2 border-transparent hover:border-black rounded-[32px] p-8 flex items-center justify-between transition-all group overflow-hidden relative shadow-sm hover:shadow-xl"
-                        >
-                            <div className="space-y-2 text-left z-10 max-w-[200px]">
-                                <h3 className="text-xl font-bold text-gray-900 group-hover:translate-x-1 transition-transform">Resume Progress</h3>
-                                <p className="text-xs text-gray-500 leading-relaxed">View your started cards and songs.</p>
-                                <div className="pt-4">
-                                    <span className="bg-black text-white px-4 py-2 rounded-full text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                                        Open Dashboard
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-center w-48">
-                                <div className="w-40 h-28 bg-white rounded-2xl flex items-center justify-center shadow-inner group-hover:bg-gray-100 transition-colors border border-gray-100 rotate-2">
-                                    <History className="w-8 h-8 text-gray-200" />
-                                </div>
-                            </div>
-                        </button>
-                    </div>
+          {/* Credits Display */}
+          {user && (
+            <div className="flex justify-center gap-6">
+                <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-100">
+                    <ImageIcon className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-bold text-blue-900">{userCredits.images} Image Credits</span>
                 </div>
-            </section>
-
-
-            {/* Pricing Section */}
-            <div ref={pricingRef} id="pricing" className="bg-gray-50 py-24 px-6 border-t border-gray-100 scroll-mt-20">
-                <div className="max-w-7xl mx-auto space-y-20">
-                    <div className="text-center space-y-4">
-                        <h2 className="text-4xl font-bold text-gray-900">Card Packs</h2>
-                        <p className="text-gray-500 max-w-2xl mx-auto">
-                            Pay $8.99 only if you love your card. Otherwise, you're charged $1.69 for AI credits. Shipping $1.24 per card (not included).
-                        </p>
-                    </div>
-
-                    {/* Card Packs Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                        {CARD_PACKS.map((pack, idx) => (
-                            <div 
-                                key={idx}
-                                className={`bg-white rounded-[24px] p-6 flex flex-col justify-between border-2 transition-all hover:scale-[1.02] ${
-                                    pack.highlight ? 'border-yellow-400 shadow-xl' : 'border-gray-100 shadow-sm'
-                                } relative overflow-hidden h-[400px]`}
-                            >
-
-                                {pack.badge && (
-                                    <div className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
-                                        {pack.badge}
-                                    </div>
-                                )}
-                                <div>
-                                    <h3 className="text-xl font-bold text-gray-900 mb-6">{pack.name}</h3>
-                                    <div className="space-y-1 mb-8">
-                                        <div className="text-4xl font-black text-gray-900">${pack.price}</div>
-                                        <div className="text-xs text-gray-400 uppercase font-bold tracking-widest">
-                                            CAD ${pack.perCard}/card
-                                        </div>
-                                        {pack.savings && (
-                                            <div className="text-xs font-bold text-green-500 uppercase tracking-widest">
-                                                SAVE {pack.savings}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <ul className="space-y-4">
-                                        <li className="flex items-center gap-3 text-xs font-bold text-gray-600">
-                                            <div className="w-5 h-5 rounded-full bg-gray-50 flex items-center justify-center">
-                                                <ImageIcon className="w-3 h-3" />
-                                            </div>
-                                            {pack.images} AI IMAGES
-                                        </li>
-                                        <li className="flex items-center gap-3 text-xs font-bold text-gray-600">
-                                            <div className="w-5 h-5 rounded-full bg-gray-50 flex items-center justify-center">
-                                                <Music className="w-3 h-3" />
-                                            </div>
-                                            {pack.songs} AI SONGS
-                                        </li>
-                                        <li className="flex items-center gap-3 text-xs font-bold text-gray-600">
-                                            <div className="w-5 h-5 rounded-full bg-gray-50 flex items-center justify-center">
-                                                <Layout className="w-3 h-3" />
-                                            </div>
-                                            {pack.cards} PRINTED CARD
-                                        </li>
-                                    </ul>
-                                </div>
-
-                                <button className={`mt-8 w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
-                                    pack.highlight ? 'bg-black text-white hover:bg-gray-800 shadow-lg' : 'bg-gray-50 text-gray-400 hover:bg-gray-200'
-                                }`}>
-                                    Select Pack
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* AI Credit Packs */}
-                    <div className="pt-20 border-t border-gray-200">
-                        <div className="text-center space-y-4 mb-16">
-                            <h2 className="text-3xl font-bold text-gray-900">AI Credit Packs</h2>
-                            <p className="text-gray-500">Design First, Decide Later. Your creations are saved for 30 days.</p>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-                            {CREDIT_PACKS.map((pack, idx) => (
-                                <div 
-                                    key={idx}
-                                    className={`bg-white rounded-[32px] p-8 border-2 transition-all hover:shadow-lg ${
-                                        pack.highlight ? 'border-black shadow-xl' : 'border-transparent shadow-sm'
-                                    }`}
-                                >
-                                    <div className="flex justify-between items-start mb-6">
-                                        <h3 className="text-xl font-bold text-gray-900">{pack.name}</h3>
-                                        {pack.badge && (
-                                            <span className="bg-black text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-full">
-                                                {pack.badge}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="mb-8">
-                                        <div className="text-3xl font-black text-gray-900">${pack.price}</div>
-                                        {pack.savings && (
-                                            <div className="text-xs font-bold text-green-500 uppercase tracking-widest mt-1">
-                                                {pack.savings} SAVINGS
-                                            </div>
-                                        )}
-                                    </div>
-                                    <ul className="space-y-3 mb-8">
-                                        <li className="flex items-center gap-2 text-xs font-bold text-gray-500">
-                                            <Check className="w-4 h-4 text-green-500" /> {pack.images} AI IMAGES
-                                        </li>
-                                        <li className="flex items-center gap-2 text-xs font-bold text-gray-500">
-                                            <Check className="w-4 h-4 text-green-500" /> {pack.songs} AI SONGS
-                                        </li>
-                                    </ul>
-                                    <button className="w-full py-3 bg-gray-50 hover:bg-black hover:text-white transition-all rounded-xl text-xs font-bold uppercase tracking-widest">
-                                        Select Credits
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                <div className="flex items-center gap-2 bg-purple-50 px-4 py-2 rounded-full border border-purple-100">
+                    <Music className="w-4 h-4 text-purple-600" />
+                    <span className="text-sm font-bold text-purple-900">{userCredits.songs} Song Credits</span>
                 </div>
             </div>
-        </main>
-    );
+          )}
+        </div>
+      </section>
+
+      {/* Option Cards Grid - 2x2 */}
+      <section className="py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            {/* Card 1: Customize a Template */}
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-8 hover:shadow-lg transition-shadow">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                Customize a Template
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Choose from our beautiful pre-designed templates and make it your own
+              </p>
+
+              {/* Mini Thumbnails Grid */}
+              <div className="grid grid-cols-3 gap-3">
+                {templateThumbnails.map((template, idx) => (
+                  <div
+                    key={idx}
+                    className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center"
+                  >
+                    <div className="text-center">
+                      <Heart className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                      <p className="text-xs text-gray-500 font-medium px-1 line-clamp-2">
+                        {template}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                onClick={() => handleOptionClick('/customize')}
+                className="w-full mt-6 px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-lg transition-colors"
+              >
+                Browse Templates
+              </button>
+            </div>
+
+            {/* Card 2: Build My Card */}
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-8 hover:shadow-lg transition-shadow">
+              <div className="flex items-center gap-3 mb-4">
+                <Sparkles className="w-8 h-8 text-pink-500" />
+                <h3 className="text-2xl font-bold text-gray-900">Build My Card</h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Start from scratch with AI-powered assistance. Describe your vision and let our AI artist create something unique just for you.
+              </p>
+
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Check className="w-5 h-5 text-green-500" />
+                  AI-generated artwork
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Check className="w-5 h-5 text-green-500" />
+                  Full customization
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Check className="w-5 h-5 text-green-500" />
+                  AI-generated music
+                </div>
+              </div>
+
+              <button 
+                onClick={() => handleOptionClick('/create')}
+                className="w-full px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-lg transition-colors"
+               >
+                Start Building
+              </button>
+            </div>
+
+            {/* Card 3: Ready to Send */}
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-8 hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-2xl font-bold text-gray-900">Ready to Send</h3>
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full">
+                  <Zap className="w-3 h-3" />
+                  NO CUSTOMIZATION
+                </span>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Skip the design process. Choose from our instantly ready-to-mail cards and send them today.
+              </p>
+
+              {/* Mini Card Thumbnails */}
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {[1, 2, 3].map((idx) => (
+                  <div
+                    key={idx}
+                    className="aspect-[3/4] bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg border-2 border-gray-200 flex items-center justify-center"
+                  >
+                    <Heart className="w-6 h-6 text-pink-400" />
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                onClick={() => handleOptionClick('/customize?ready=true')}
+                className="w-full px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-lg transition-colors"
+               >
+                See All Cards
+              </button>
+            </div>
+
+            {/* Card 4: My Cards & Songs */}
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-8 hover:shadow-lg transition-shadow">
+              <div className="flex items-center gap-3 mb-4">
+                <Music className="w-8 h-8 text-pink-500" />
+                <h3 className="text-2xl font-bold text-gray-900">My Cards & Songs</h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Resume work on cards you've started. Check your saved creations and continue editing, customizing, or send them to loved ones.
+              </p>
+
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Check className="w-5 h-5 text-green-500" />
+                  Access your drafts
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Check className="w-5 h-5 text-green-500" />
+                  Edit anytime
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Check className="w-5 h-5 text-green-500" />
+                  Never lose your work
+                </div>
+              </div>
+
+              <button 
+                onClick={() => router.push('/my-cards')}
+                className="w-full px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-lg transition-colors"
+               >
+                View My Cards
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Divider */}
+      <div className="border-t border-gray-200" />
+
+      {/* Pricing Section */}
+      <section ref={pricingRef} className="py-16 px-4 sm:px-6 lg:px-8 scroll-mt-20">
+        <div className="max-w-6xl mx-auto">
+          {/* No Credits Banner */}
+          {!hasCredits && (
+            <div className="mb-12 p-4 bg-orange-50 border-l-4 border-orange-400 rounded">
+                <p className="text-orange-800 font-semibold">
+                ⚠️ No credits remaining. Purchase a card pack or add AI credits to continue.
+                </p>
+            </div>
+          )}
+
+          {/* Card Packs */}
+          <div className="mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">Card Packs</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+              {cardPacks.map((pack) => (
+                <div
+                  key={pack.id}
+                  onClick={() => setSelectedCardPack(pack.id)}
+                  className={`relative p-6 rounded-lg border-2 cursor-pointer transition-all ${
+                    selectedCardPack === pack.id
+                      ? 'border-pink-500 bg-pink-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  {/* Badge */}
+                  {pack.badge && (
+                    <div className="absolute top-4 right-4 inline-flex items-center px-3 py-1 bg-gradient-to-r from-pink-500 to-red-500 text-white text-xs font-bold rounded-full">
+                      {pack.badge}
+                    </div>
+                  )}
+
+                  {/* Name */}
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    {pack.name}
+                  </h3>
+
+                  {/* Price */}
+                  <div className="mb-4">
+                    <p className="text-3xl font-bold text-gray-900">
+                      ${pack.price.toFixed(2)}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      ${pack.perCard.toFixed(2)}/card
+                    </p>
+                    {pack.savings && (
+                      <p className="text-sm font-semibold text-green-600 mt-1">
+                        {pack.savings}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Details */}
+                  <div className="space-y-2 mb-6 text-sm">
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Check className="w-4 h-4 text-green-500" />
+                      {pack.cards}
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Check className="w-4 h-4 text-green-500" />
+                      {pack.images} AI Images
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Check className="w-4 h-4 text-green-500" />
+                      {pack.songs} AI Songs
+                    </div>
+                  </div>
+
+                  {/* Button */}
+                  <button
+                    className={`w-full py-2 font-semibold rounded-lg transition-colors ${
+                      selectedCardPack === pack.id
+                        ? 'bg-pink-500 text-white hover:bg-pink-600'
+                        : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                    }`}
+                  >
+                    Select
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Shipping Note */}
+            <p className="text-sm text-gray-600 italic">
+              * Cards are professionally printed and mailed directly to your recipient
+            </p>
+          </div>
+
+          {/* AI Credit Packs */}
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">AI Credit Packs</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {creditPacks.map((pack) => (
+                <div
+                  key={pack.id}
+                  onClick={() => setSelectedCreditPack(pack.id)}
+                  className={`relative p-6 rounded-lg border-2 cursor-pointer transition-all ${
+                    selectedCreditPack === pack.id
+                      ? 'border-pink-500 bg-pink-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  {/* Badge */}
+                  {pack.badge && (
+                    <div className="absolute top-4 right-4 inline-flex items-center px-3 py-1 bg-gradient-to-r from-pink-500 to-red-500 text-white text-xs font-bold rounded-full">
+                      {pack.badge}
+                    </div>
+                  )}
+
+                  {/* Icon */}
+                  <Zap className="w-8 h-8 text-yellow-500 mb-3" />
+
+                  {/* Name */}
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    {pack.name}
+                  </h3>
+
+                  {/* Price */}
+                  <div className="mb-4">
+                    <p className="text-3xl font-bold text-gray-900">
+                      ${pack.price.toFixed(2)}
+                    </p>
+                    {pack.savings && (
+                      <p className="text-sm font-semibold text-green-600 mt-1">
+                        {pack.savings}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Details */}
+                  <div className="space-y-2 mb-6 text-sm">
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Check className="w-4 h-4 text-green-500" />
+                      {pack.credits}
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Check className="w-4 h-4 text-green-500" />
+                      {pack.duration}
+                    </div>
+                  </div>
+
+                  {/* Button */}
+                  <button
+                    className={`w-full py-2 font-semibold rounded-lg transition-colors ${
+                      selectedCreditPack === pack.id
+                        ? 'bg-pink-500 text-white hover:bg-pink-600'
+                        : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                    }`}
+                  >
+                    Select
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
