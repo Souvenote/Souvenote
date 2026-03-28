@@ -218,7 +218,8 @@ export default function BuildMyCard() {
       formData.grounding ? 'grounded in real-world details.' : null,
       // Print-Ready Compositional Safety Directives
       'Center all focal points, characters, and essential details to provide a natural safety margin within the artwork.',
-      'Background must extend fully to all four edges of the image without any white borders or frames.'
+      'Background must extend fully to all four edges of the image without any white borders or frames.',
+      'This image is the actual flat 2D graphic of the card face. Do NOT render a 3D mockup, hands holding the card, envelopes, or a card resting on a surface.'
     ];
 
     return promptParts.filter(Boolean).join(', ');
@@ -290,7 +291,7 @@ export default function BuildMyCard() {
         formDataPayload.append('prompt', fullPrompt);
         
         // Comprehensive Negative String for Legal, Print Quality, Layout, and Safety Parameters
-        const NEGATIVE_PROMPT = "white border, white frame, padding, white margin, letterbox, blurry, low resolution, pixelated, grain, noise, artifacts, distorted anatomy, extra fingers, bad hands, Disney, Marvel, Star Wars, Starbucks, Coca-Cola, logos, trademarked, celebrity, signature, watermark, NSFW, violence, gore";
+        const NEGATIVE_PROMPT = "mockup, 3D render of a card, hands holding card, envelope, card on table, floating card, perspective angle, white border, white frame, padding, white margin, letterbox, blurry, low resolution, pixelated, grain, noise, artifacts, distorted anatomy, extra fingers, bad hands, Disney, Marvel, Star Wars, Starbucks, Coca-Cola, logos, trademarked, celebrity, signature, watermark, NSFW, violence, gore";
         formDataPayload.append('negative_prompt', NEGATIVE_PROMPT);
 
         // If the user uploaded reference images, append the first one to trigger Image-to-Image variations!
