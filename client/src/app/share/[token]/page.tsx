@@ -70,15 +70,20 @@ export default function SharedCardPage() {
         ) : sharedCard ? (
           <section className="grid gap-6 md:grid-cols-[0.95fr_1.05fr]">
             <article className="rounded-[2rem] border border-[#e9e1d5] bg-white p-6 shadow-sm">
-              <div className="overflow-hidden rounded-[2rem] border border-[#efe7db] bg-[#fcfaf7]">
+              <div
+                className="overflow-hidden rounded-[2rem] border border-[#efe7db] bg-[#fcfaf7]"
+                style={{
+                  aspectRatio: (sharedCard.card.aspectRatio || '5:7').replace(':', ' / '),
+                }}
+              >
                 {sharedCard.card.thumbnailUrl || sharedCard.card.imageUrl ? (
                   <img
                     src={sharedCard.card.thumbnailUrl || sharedCard.card.imageUrl}
                     alt={sharedCard.card.title}
-                    className="aspect-[5/7] w-full object-cover"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex aspect-[5/7] items-center justify-center bg-gradient-to-br from-[#fff8ef] via-[#fcfaf7] to-[#f4ecdf] text-7xl">
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#fff8ef] via-[#fcfaf7] to-[#f4ecdf] text-7xl">
                     {sharedCard.card.previewEmoji || '💌'}
                   </div>
                 )}

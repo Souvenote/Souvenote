@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -24,7 +24,7 @@ const READY_TO_SEND = [
   { id: 6, name: 'Elegant Blush', occasion: 'Wedding', badge: null, image: '🌸' },
 ];
 
-export default function CustomizePage() {
+function CustomizePageContent() {
   const [selectedOccasion, setSelectedOccasion] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const searchParams = useSearchParams();
@@ -223,5 +223,13 @@ export default function CustomizePage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function CustomizePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#fafafa]" />}>
+      <CustomizePageContent />
+    </Suspense>
   );
 }

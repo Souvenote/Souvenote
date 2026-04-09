@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMusicStore } from '@/stores/music-store';
-import { cardsApi, musicApi } from '@/lib/api';
+import { cardsApi, imageApi, musicApi } from '@/lib/api';
 import AddSongModal from '@/app/components/music/AddSongModal';
 import CreditsCheckModal from '@/app/components/music/CreditsCheckModal';
 import SongCreationChoice from '@/app/components/music/SongCreationChoice';
@@ -18,6 +18,7 @@ function MusicGenerationContent() {
   const searchParams = useSearchParams();
   const routeContextKey = searchParams.toString();
   const cardId = searchParams.get('cardId');
+  const imageId = searchParams.get('imageId');
   const designPrompt = searchParams.get('designPrompt');
   const cardTemplateId = searchParams.get('cardTemplateId');
   const templateTitle = searchParams.get('templateTitle');
@@ -95,6 +96,10 @@ function MusicGenerationContent() {
     setFinalizationError(null);
 
     if (cardId) {
+      if (imageId) {
+        await imageApi.linkToCard(imageId, cardId);
+      }
+
       if (songId) {
         await musicApi.linkSongToCard(songId, cardId);
       }
@@ -113,6 +118,10 @@ function MusicGenerationContent() {
         status: 'complete',
         personalizationData: buildPersonalizationData(),
       });
+
+      if (imageId) {
+        await imageApi.linkToCard(imageId, createdCard.id);
+      }
 
       if (songId) {
         await musicApi.linkSongToCard(songId, createdCard.id);

@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { Instagram, Facebook, Youtube, Linkedin, Twitter } from 'lucide-react';
 
@@ -81,7 +80,7 @@ export default function Footer() {
 
                 {/* Bottom Row */}
                 <div className="pt-8 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-6">
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-400" suppressHydrationWarning>
                         © {new Date().getFullYear()} Souvenote. All rights reserved.
                     </p>
                     

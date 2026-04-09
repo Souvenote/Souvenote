@@ -62,7 +62,6 @@ export default function PersonalizationFlow({
             cardCategory ? `for ${cardCategory.toLowerCase()}` : null,
             cardTitle ? `using the ${cardTitle} template` : null,
             photo ? 'personalized from an uploaded photo' : null,
-            name ? `for ${name}` : null,
             caption ? `with the caption "${caption}"` : null,
             message ? `and a message that says "${message}"` : null,
             `styled with ${fontStyle}`,

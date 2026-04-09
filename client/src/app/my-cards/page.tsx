@@ -45,6 +45,9 @@ interface LibraryCard {
   designPrompt?: string;
   format: string;
   songId?: string;
+  imageId?: string;
+  previewImageUrl?: string | null;
+  previewAspectRatio?: string | null;
    deliveryStatus?: string;
    shareToken?: string;
   status: string;
@@ -513,8 +516,13 @@ export default function MyCardsPage() {
                       : undefined;
                     const template = templateById || templateByTitle;
                     const previewImageUrl =
-                      template?.thumbnailUrl || template?.imageUrl || null;
+                      card.previewImageUrl ||
+                      template?.thumbnailUrl ||
+                      template?.imageUrl ||
+                      null;
                     const previewEmoji = getCardFallbackEmoji(card, template);
+                    const previewAspectRatio =
+                      (card.previewAspectRatio || '5:7').replace(':', ' / ');
 
                     return (
                       <article
@@ -535,7 +543,10 @@ export default function MyCardsPage() {
 
                         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                           <div className="mx-auto w-full max-w-[140px] shrink-0 sm:mx-0">
-                            <div className="relative aspect-[5/7] overflow-hidden rounded-3xl border border-[#e9e1d5] bg-white shadow-sm">
+                            <div
+                              className="relative overflow-hidden rounded-3xl border border-[#e9e1d5] bg-white shadow-sm"
+                              style={{ aspectRatio: previewAspectRatio }}
+                            >
                               {previewImageUrl ? (
                                 <img
                                   src={previewImageUrl}

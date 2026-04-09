@@ -14,6 +14,7 @@ import { CardTemplatesModule } from './card-templates/card-templates.module';
 import { PremadeSongsModule } from './premade-songs/premade-songs.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { PurchasesModule } from './purchases/purchases.module';
+import { RecraftModule } from './recraft/recraft.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PurchasesModule } from './purchases/purchases.module';
     PremadeSongsModule,
     DeliveryModule,
     PurchasesModule,
+    RecraftModule,
   ],
 })
 export class AppModule {}

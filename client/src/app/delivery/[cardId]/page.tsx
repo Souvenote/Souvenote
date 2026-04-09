@@ -110,6 +110,10 @@ export default function DeliveryPage() {
 
     return null;
   }, [delivery?.personalizationData?.selectedPriceCad]);
+  const previewAspectRatio = useMemo(
+    () => (delivery?.previewAspectRatio || '5:7').replace(':', ' / '),
+    [delivery?.previewAspectRatio],
+  );
 
   const handleCopyLink = async () => {
     if (!delivery?.shareUrl) {
@@ -209,15 +213,22 @@ export default function DeliveryPage() {
           <section className="grid gap-6 md:grid-cols-[0.9fr_1.1fr]">
             <article className="rounded-[2rem] border border-[#e9e1d5] bg-white p-6 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8a7760]">Card preview</p>
-              <div className="mt-5 overflow-hidden rounded-[2rem] border border-[#efe7db] bg-[#fcfaf7]">
-                {delivery.template?.thumbnailUrl || delivery.template?.imageUrl ? (
+              <div
+                className="mt-5 overflow-hidden rounded-[2rem] border border-[#efe7db] bg-[#fcfaf7]"
+                style={{ aspectRatio: previewAspectRatio }}
+              >
+                {delivery.previewImageUrl || delivery.template?.thumbnailUrl || delivery.template?.imageUrl ? (
                   <img
-                    src={delivery.template.thumbnailUrl || delivery.template.imageUrl}
+                    src={
+                      delivery.previewImageUrl ||
+                      delivery.template?.thumbnailUrl ||
+                      delivery.template?.imageUrl
+                    }
                     alt={cardTitle}
-                    className="aspect-[5/7] w-full object-cover"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex aspect-[5/7] items-center justify-center bg-gradient-to-br from-[#fff8ef] via-[#fcfaf7] to-[#f4ecdf] text-7xl">
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#fff8ef] via-[#fcfaf7] to-[#f4ecdf] text-7xl">
                     {previewEmoji}
                   </div>
                 )}

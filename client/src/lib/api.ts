@@ -4,7 +4,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface ApiOptions {
   method?: string;
-  body?: any;
+  body?: unknown;
   headers?: Record<string, string>;
 }
 
@@ -45,6 +45,8 @@ export interface DeliveryRecord {
   cardId: string;
   format: 'physical' | 'digital';
   deliveryStatus: string;
+  previewImageUrl?: string | null;
+  previewAspectRatio?: string | null;
   recipientName?: string | null;
   recipientEmail?: string | null;
   deliveryMessage?: string | null;
@@ -81,6 +83,7 @@ export interface SharedCardPayload {
     caption?: string;
     deliveryMessage?: string;
     previewEmoji?: string;
+    aspectRatio?: string;
     imageUrl?: string;
     thumbnailUrl?: string;
   };
@@ -96,18 +99,26 @@ export interface SharedCardPayload {
 async function buildRequestConfig(options: ApiOptions = {}): Promise<RequestInit> {
   const { method = 'GET', body, headers = {} } = options;
   const token = await getAccessToken();
+  const isFormDataBody = typeof FormData !== 'undefined' && body instanceof FormData;
 
   const config: RequestInit = {
     method,
     headers: {
-      'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
   };
 
   if (body && method !== 'GET') {
-    config.body = JSON.stringify(body);
+    if (isFormDataBody) {
+      config.body = body;
+    } else {
+      config.headers = {
+        'Content-Type': 'application/json',
+        ...config.headers,
+      };
+      config.body = JSON.stringify(body);
+    }
   }
 
   return config;
@@ -115,17 +126,25 @@ async function buildRequestConfig(options: ApiOptions = {}): Promise<RequestInit
 
 async function buildPublicRequestConfig(options: ApiOptions = {}): Promise<RequestInit> {
   const { method = 'GET', body, headers = {} } = options;
+  const isFormDataBody = typeof FormData !== 'undefined' && body instanceof FormData;
 
   const config: RequestInit = {
     method,
     headers: {
-      'Content-Type': 'application/json',
       ...headers,
     },
   };
 
   if (body && method !== 'GET') {
-    config.body = JSON.stringify(body);
+    if (isFormDataBody) {
+      config.body = body;
+    } else {
+      config.headers = {
+        'Content-Type': 'application/json',
+        ...config.headers,
+      };
+      config.body = JSON.stringify(body);
+    }
   }
 
   return config;
@@ -351,6 +370,125 @@ export const premadeSongsApi = {
   getAudio: (id: string) => requestBlob(`/premade-songs/${id}/audio`),
 
   select: (id: string) => request<any>(`/premade-songs/${id}/select`, { method: 'POST' }),
+};
+
+// Images API
+export interface GenerateImageRequest {
+  prompt: string;
+  negativePrompt?: string;
+  cardId?: string;
+  aspectRatio?: '5:7' | '7:5' | '1:1';
+  resolutionTier?: '0.5k' | '1k' | '2k' | '4k';
+  model?: 'recraftv3' | 'recraftv4' | 'recraftv4_pro';
+  style?: string;
+  styleId?: string;
+  identityPreservation?: boolean;
+  referenceBaseStyle?:
+    | 'any'
+    | 'realistic_image'
+    | 'digital_illustration'
+    | 'vector_illustration'
+    | 'icon';
+  referenceImages?: File[];
+}
+
+export interface GeneratedImageRecord {
+  id: string;
+  userId: string;
+  cardId?: string;
+  prompt: string;
+  negativePrompt?: string;
+  imageUrl?: string;
+  provider: string;
+  providerModel: string;
+  aspectRatio: string;
+  resolutionTier: string;
+  width?: number;
+  height?: number;
+  status: string;
+  compositeUrl?: string;
+  canvasJson?: Record<string, any>;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const imageApi = {
+  generate: (data: GenerateImageRequest) => {
+    if (data.referenceImages?.length) {
+      const formData = new FormData();
+      formData.append('prompt', data.prompt);
+
+      if (data.negativePrompt) {
+        formData.append('negativePrompt', data.negativePrompt);
+      }
+      if (data.cardId) {
+        formData.append('cardId', data.cardId);
+      }
+      if (data.aspectRatio) {
+        formData.append('aspectRatio', data.aspectRatio);
+      }
+      if (data.resolutionTier) {
+        formData.append('resolutionTier', data.resolutionTier);
+      }
+      if (data.model) {
+        formData.append('model', data.model);
+      }
+      if (data.style) {
+        formData.append('style', data.style);
+      }
+      if (data.styleId) {
+        formData.append('styleId', data.styleId);
+      }
+      if (typeof data.identityPreservation === 'boolean') {
+        formData.append(
+          'identityPreservation',
+          data.identityPreservation ? 'true' : 'false',
+        );
+      }
+      if (data.referenceBaseStyle) {
+        formData.append('referenceBaseStyle', data.referenceBaseStyle);
+      }
+
+      data.referenceImages.slice(0, 5).forEach((file) => {
+        formData.append('referenceImages', file);
+      });
+
+      return request<GeneratedImageRecord>('/images/generate', {
+        method: 'POST',
+        body: formData,
+      });
+    }
+
+    return request<GeneratedImageRecord>('/images/generate', {
+      method: 'POST',
+      body: data,
+    });
+  },
+
+  getMyImages: () =>
+    request<GeneratedImageRecord[]>('/images/my-images'),
+
+  getImage: (id: string) =>
+    request<GeneratedImageRecord>(`/images/${id}`),
+
+  linkToCard: (imageId: string, cardId: string) =>
+    request<GeneratedImageRecord>(`/images/link/${imageId}`, {
+      method: 'POST',
+      body: { cardId },
+    }),
+
+  saveComposite: (imageId: string, compositeUrl: string, canvasJson?: Record<string, any>) =>
+    request<GeneratedImageRecord>(`/images/${imageId}/composite`, {
+      method: 'POST',
+      body: { compositeUrl, canvasJson },
+    }),
+
+  upscale: (imageId: string, mode: 'crisp' | 'creative' = 'crisp') =>
+    request<GeneratedImageRecord>(`/images/${imageId}/upscale`, {
+      method: 'POST',
+      body: { mode },
+    }),
 };
 
 // Greeting Cards API

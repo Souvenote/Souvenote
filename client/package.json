@@ -9,12 +9,12 @@
     },
     "dependencies": {
         "aws-amplify": "^6.16.2",
+        "fabric": "^7.2.0",
         "lucide-react": "^0.577.0",
         "next": "^15.0.0",
         "openai": "^6.32.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
-        "souvenote-client": "file:",
         "wavesurfer.js": "^7.12.4",
         "zustand": "^5.0.12"
     },

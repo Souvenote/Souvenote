@@ -13,6 +13,7 @@ import {
   GreetingCard,
 } from '../entities/greeting-card.entity';
 import { CardTemplate } from '../entities/card-template.entity';
+import { GeneratedImage } from '../entities/image.entity';
 import { Song } from '../entities/song.entity';
 import { MusicService } from '../music/music.service';
 import { CreateDigitalDeliveryDto } from './dto/create-digital-delivery.dto';
@@ -30,6 +31,8 @@ export interface DeliveryResponse {
   cardId: string;
   format: CardFormat;
   deliveryStatus: DeliveryStatus;
+  previewImageUrl: string | null;
+  previewAspectRatio: string | null;
   recipientName?: string;
   recipientEmail?: string;
   deliveryMessage?: string;
@@ -52,6 +55,7 @@ export interface SharedCardResponse {
     caption?: string;
     deliveryMessage?: string;
     previewEmoji?: string;
+    aspectRatio?: string;
     imageUrl?: string;
     thumbnailUrl?: string;
   };
@@ -71,6 +75,8 @@ export class DeliveryService {
     private readonly cardRepository: Repository<GreetingCard>,
     @InjectRepository(CardTemplate)
     private readonly cardTemplateRepository: Repository<CardTemplate>,
+    @InjectRepository(GeneratedImage)
+    private readonly imageRepository: Repository<GeneratedImage>,
     @InjectRepository(Song)
     private readonly songRepository: Repository<Song>,
     private readonly configService: ConfigService,
@@ -146,6 +152,7 @@ export class DeliveryService {
     }
 
     const template = await this.resolveTemplateSummary(card);
+    const artwork = await this.resolveImagePreview(card);
     const song = card.songId
       ? await this.songRepository.findOne({
           where: { id: card.songId },
@@ -167,8 +174,9 @@ export class DeliveryService {
         caption: card.personalizationData?.caption,
         deliveryMessage: card.deliveryMessage,
         previewEmoji: template?.previewEmoji,
-        imageUrl: template?.imageUrl,
-        thumbnailUrl: template?.thumbnailUrl,
+        aspectRatio: artwork?.aspectRatio,
+        imageUrl: artwork?.imageUrl || template?.imageUrl,
+        thumbnailUrl: artwork?.imageUrl || template?.thumbnailUrl,
       },
       song: song
         ? {
@@ -211,12 +219,18 @@ export class DeliveryService {
   }
 
   private async buildDeliveryResponse(card: GreetingCard): Promise<DeliveryResponse> {
-    const template = await this.resolveTemplateSummary(card);
+    const [template, artwork] = await Promise.all([
+      this.resolveTemplateSummary(card),
+      this.resolveImagePreview(card),
+    ]);
 
     return {
       cardId: card.id,
       format: card.format,
       deliveryStatus: card.deliveryStatus,
+      previewImageUrl:
+        artwork?.imageUrl || template?.thumbnailUrl || template?.imageUrl || null,
+      previewAspectRatio: artwork?.aspectRatio || null,
       recipientName: card.recipientName,
       recipientEmail: card.recipientEmail,
       deliveryMessage: card.deliveryMessage,
@@ -226,6 +240,32 @@ export class DeliveryService {
       template: template || null,
       songId: card.songId || null,
       personalizationData: card.personalizationData || null,
+    };
+  }
+
+  private async resolveImagePreview(
+    card: GreetingCard,
+  ): Promise<{ imageUrl: string; aspectRatio?: string } | null> {
+    if (!card.imageId) {
+      return null;
+    }
+
+    const image = await this.imageRepository.findOne({
+      where: { id: card.imageId },
+    });
+
+    if (!image) {
+      return null;
+    }
+
+    const imageUrl = image.compositeUrl || image.imageUrl;
+    if (!imageUrl) {
+      return null;
+    }
+
+    return {
+      imageUrl,
+      aspectRatio: image.aspectRatio,
     };
   }
 

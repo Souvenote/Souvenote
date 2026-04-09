@@ -23,7 +23,7 @@ import {
 // --- Constants ---
 
 import PricingPopup from './PricingPopup';
-import { musicApi } from '@/lib/api';
+import { musicApi, imageApi, type GeneratedImageRecord } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
 // --- Constants ---
@@ -72,8 +72,8 @@ const FRAMING_OPTIONS = [
 ];
 
 const ORIENTATIONS = [
-  { label: "Portrait (10:14)", value: "10:14" },
-  { label: "Landscape (14:10)", value: "14:10" },
+  { label: "Standard Card (5:7)", value: "5:7" },
+  { label: "Landscape (7:5)", value: "7:5" },
   { label: "Square (1:1)", value: "1:1" }
 ];
 
@@ -117,6 +117,7 @@ export default function BuildMyCard() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<GeneratedImageRecord | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [userCredits, setUserCredits] = useState<number | null>(null);
@@ -139,7 +140,7 @@ export default function BuildMyCard() {
     environment: '',
     lighting: '',
     framing: '',
-    orientation: '10:14',
+    orientation: '5:7',
     grounding: false,
     textContent: '',
     placement: '',
@@ -225,30 +226,64 @@ export default function BuildMyCard() {
     return promptParts.filter(Boolean).join(', ');
   };
 
+  const resolveReferenceBaseStyle = () => {
+    switch (formData.artStyle) {
+      case 'Professional Photography':
+        return 'realistic_image' as const;
+      case 'Minimalist Vector':
+        return 'vector_illustration' as const;
+      default:
+        return 'digital_illustration' as const;
+    }
+  };
+
   const handleApproveAndSave = () => {
     if (!generatedImageUrl || isApproving) {
       return;
     }
 
-    setIsApproving(true);
+    void (async () => {
+      setIsApproving(true);
 
-    const searchParams = new URLSearchParams({
-      designPrompt: buildDesignPrompt(),
-    });
+      try {
+        let approvedImage = generatedImage;
 
-    if (formData.occasion) {
-      searchParams.set('occasion', formData.occasion);
-    }
+        if (generatedImage?.id) {
+          approvedImage = await imageApi.upscale(generatedImage.id);
+          setGeneratedImage(approvedImage);
+          setGeneratedImageUrl(approvedImage.imageUrl || generatedImageUrl);
+        }
 
-    if (formData.relationship) {
-      searchParams.set('recipientRelationship', formData.relationship);
-    }
+        const searchParams = new URLSearchParams({
+          designPrompt: buildDesignPrompt(),
+          imageUrl: approvedImage?.imageUrl || generatedImageUrl,
+          aspectRatio: formData.orientation,
+        });
 
-    if (formData.textContent) {
-      searchParams.set('message', formData.textContent);
-    }
+        if (approvedImage?.id) {
+          searchParams.set('imageId', approvedImage.id);
+        }
 
-    router.push(`/create/music?${searchParams.toString()}`);
+        if (formData.occasion) {
+          searchParams.set('occasion', formData.occasion);
+        }
+
+        if (formData.relationship) {
+          searchParams.set('recipientRelationship', formData.relationship);
+        }
+
+        if (formData.textContent) {
+          searchParams.set('message', formData.textContent);
+        }
+
+        router.push(`/create/editor?${searchParams.toString()}`);
+      } catch (error) {
+        console.error('Failed to upscale approved image:', error);
+        alert('We could not prepare the high-resolution version of this card. Please try approving again.');
+      } finally {
+        setIsApproving(false);
+      }
+    })();
   };
 
   const updateField = (field: keyof BuildCardFormData, value: any) => {
@@ -284,38 +319,48 @@ export default function BuildMyCard() {
     }
 
     setPhase('generating');
-    
+    setIsGenerating(true);
+
     try {
-        const formDataPayload = new FormData();
         const fullPrompt = buildDesignPrompt();
-        formDataPayload.append('prompt', fullPrompt);
-        
-        // Comprehensive Negative String for Legal, Print Quality, Layout, and Safety Parameters
+
         const NEGATIVE_PROMPT = "mockup, 3D render of a card, hands holding card, envelope, card on table, floating card, perspective angle, white border, white frame, padding, white margin, letterbox, blurry, low resolution, pixelated, grain, noise, artifacts, distorted anatomy, extra fingers, bad hands, Disney, Marvel, Star Wars, Starbucks, Coca-Cola, logos, trademarked, celebrity, signature, watermark, NSFW, violence, gore";
-        formDataPayload.append('negative_prompt', NEGATIVE_PROMPT);
 
-        // If the user uploaded reference images, append the first one to trigger Image-to-Image variations!
-        if (formData.referenceImages.length > 0) {
-            formDataPayload.append('image', formData.referenceImages[0]);
-        }
+        // Map orientation to API aspect ratio
+        const aspectRatio = formData.orientation as '5:7' | '7:5' | '1:1';
 
-        const response = await fetch('/api/recraft', {
-            method: 'POST',
-            body: formDataPayload,
+        const result = await imageApi.generate({
+            prompt: fullPrompt,
+            negativePrompt: NEGATIVE_PROMPT,
+            aspectRatio,
+            resolutionTier: '1k',
+            model:
+              formData.referenceImages.length > 0 || formData.identityPreservation
+                ? 'recraftv3'
+                : undefined,
+            identityPreservation: formData.identityPreservation,
+            referenceBaseStyle: resolveReferenceBaseStyle(),
+            referenceImages:
+              formData.referenceImages.length > 0
+                ? formData.referenceImages.slice(0, 5)
+                : undefined,
         });
 
-        if (!response.ok) {
-            throw new Error("Generation failed");
-        }
-
-        const data = await response.json();
-        setGeneratedImageUrl(data.url);
+        setGeneratedImage(result);
+        setGeneratedImageUrl(result.imageUrl || null);
+        setUserCredits(prev => prev !== null ? Math.max(0, prev - 1) : prev);
         setPhase('result');
-    } catch (err) {
-        console.error("Recraft error:", err);
-        // Fallback to error state or retry (using fallback for now so UI doesn't break)
-        alert("Failed to generate custom Recraft image. Please check API keys or try again.");
-        setPhase(2); // kick them back to a previous phase to fix it
+    } catch (err: any) {
+        if (err?.data?.error === 'insufficient_credits') {
+            setPricingOpen(true);
+            setPhase(typeof phase === 'number' ? phase : 2);
+            return;
+        }
+        console.error("Image generation error:", err);
+        alert("Failed to generate image. Please try again.");
+        setPhase(2);
+    } finally {
+        setIsGenerating(false);
     }
   };
 
@@ -336,7 +381,7 @@ export default function BuildMyCard() {
       const newFiles = Array.from(e.target.files);
       setFormData(prev => ({
         ...prev,
-        referenceImages: [...prev.referenceImages, ...newFiles].slice(0, 14)
+        referenceImages: [...prev.referenceImages, ...newFiles].slice(0, 5)
       }));
     }
   };
@@ -359,9 +404,9 @@ export default function BuildMyCard() {
         <div className="absolute inset-0 w-32 h-32 rounded-full border-4 border-t-black border-transparent animate-spin" />
       </div>
       <div className="text-center space-y-2">
-        <h3 className="text-2xl font-bold">Nano Banana 2 is working...</h3>
+        <h3 className="text-2xl font-bold">Recraft is generating your card...</h3>
         <p className="text-gray-400 text-sm">Generating your high-fidelity, print-ready design (~15-30s)</p>
-        <p className="text-[10px] text-gray-300 font-bold uppercase tracking-[0.2em] pt-2">Powered by GPT-4o mini</p>
+        <p className="text-[10px] text-gray-300 font-bold uppercase tracking-[0.2em] pt-2">Powered by Recraft</p>
       </div>
 
       <div className="w-64 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -400,7 +445,7 @@ export default function BuildMyCard() {
                         disabled={isApproving}
                         className="w-full py-5 bg-black text-white rounded-3xl font-black uppercase tracking-widest shadow-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-3 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        {isApproving ? 'Opening Music Flow...' : 'Approve & Save'} <Star className="w-5 h-5 fill-white" />
+                        {isApproving ? 'Upscaling & Opening Editor...' : 'Approve & Save'} <Star className="w-5 h-5 fill-white" />
                     </button>
                     
                     <div className="grid grid-cols-2 gap-4">
@@ -578,7 +623,7 @@ export default function BuildMyCard() {
         <div className="space-y-6">
           <div className="flex justify-between items-end">
             <label className="text-sm font-bold uppercase tracking-widest text-gray-400">Reference Images (Optional)</label>
-            <span className="text-[10px] text-gray-400 font-bold">{formData.referenceImages.length}/14 images</span>
+            <span className="text-[10px] text-gray-400 font-bold">{formData.referenceImages.length}/5 images</span>
           </div>
           <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
             {formData.referenceImages.map((img, idx) => (
@@ -592,7 +637,7 @@ export default function BuildMyCard() {
                 </button>
               </div>
             ))}
-            {formData.referenceImages.length < 14 && (
+            {formData.referenceImages.length < 5 && (
               <label className="aspect-square border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-black/20 hover:bg-gray-50 transition-all">
                 <input type="file" multiple className="hidden" onChange={handleImageUpload} accept="image/*" />
                 <Plus className="w-6 h-6 text-gray-300" />
@@ -605,7 +650,7 @@ export default function BuildMyCard() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                     <h4 className="text-sm font-bold text-gray-900">Subject Identity Preservation</h4>
-                    <p className="text-xs text-gray-400 italic">Keep the person's face exactly as shown in the upload.</p>
+                    <p className="text-xs text-gray-400 italic">Uses the first uploaded image to preserve the subject while the set informs style.</p>
                 </div>
                 <button 
                   onClick={() => updateField('identityPreservation', !formData.identityPreservation)}
@@ -806,7 +851,7 @@ export default function BuildMyCard() {
                 }`}
               >
                 <div className={`border-2 rounded border-gray-200 ${
-                  opt.value === '10:14' ? 'w-6 h-8' : opt.value === '14:10' ? 'w-8 h-6' : 'w-7 h-7'
+                  opt.value === '5:7' ? 'w-6 h-8' : opt.value === '7:5' ? 'w-8 h-6' : 'w-7 h-7'
                 }`} />
                 <span className="text-[10px] font-bold uppercase tracking-widest">{opt.label}</span>
               </button>

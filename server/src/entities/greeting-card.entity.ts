@@ -57,6 +57,9 @@ export class GreetingCard {
   @Column({ name: 'song_id', type: 'uuid', nullable: true })
   songId?: string;
 
+  @Column({ name: 'image_id', type: 'uuid', nullable: true })
+  imageId?: string;
+
   @Column({ name: 'share_token', type: 'varchar', unique: true, nullable: true })
   shareToken?: string;
 

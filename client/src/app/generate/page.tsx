@@ -1,25 +1,27 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import DecisionModal from './DecisionModal';
 import PricingPopup from '@/app/components/PricingPopup';
 import { Loader2 } from 'lucide-react';
+import { imageApi, type GeneratedImageRecord } from '@/lib/api';
 
-export default function GeneratePage() {
+function GeneratePageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
 
     const initialPrompt = searchParams.get('prompt') || '';
-    
+
     const [status, setStatus] = useState<'idle' | 'loading' | 'completed' | 'error'>('idle');
+    const [generatedImage, setGeneratedImage] = useState<GeneratedImageRecord | null>(null);
     const [generatedImages, setGeneratedImages] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [showDecisionModal, setShowDecisionModal] = useState(false);
     const [showPricingPopup, setShowPricingPopup] = useState(false);
-    
+
     // For "keep trying" inline prompt
     const [newPrompt, setNewPrompt] = useState(initialPrompt);
     const [showNewPromptInput, setShowNewPromptInput] = useState(false);
@@ -39,23 +41,28 @@ export default function GeneratePage() {
         setShowDecisionModal(false);
         setShowNewPromptInput(false);
         setError(null);
-        
+
         try {
-            const response = await fetch('/api/recraft', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: promptToUse }),
+            const result = await imageApi.generate({
+                prompt: promptToUse,
+                aspectRatio: '5:7',
+                resolutionTier: '1k',
             });
-            
-            if (!response.ok) throw new Error('Failed to generate image');
-            
-            const data = await response.json();
-            setGeneratedImages(prev => [data.url, ...prev]);
+
+            setGeneratedImage(result);
+            if (result.imageUrl) {
+                setGeneratedImages(prev => [result.imageUrl!, ...prev]);
+            }
             setStatus('completed');
-            
+
             setTimeout(() => setShowDecisionModal(true), 500);
 
-        } catch (err) {
+        } catch (err: any) {
+            if (err?.data?.error === 'insufficient_credits') {
+                setShowPricingPopup(true);
+                setStatus('idle');
+                return;
+            }
             setError(err instanceof Error ? err.message : 'Error generating image');
             setStatus('error');
         }
@@ -63,11 +70,53 @@ export default function GeneratePage() {
 
     const hasCredits = (user?.imageCreditBalance || 0) > 0;
 
-    const handleApprove = () => router.push('/music/generate');
-    
+    const openEditor = (image: GeneratedImageRecord | null) => {
+        const imageUrl = image?.imageUrl;
+        if (!imageUrl) {
+            setError('No generated image is available to edit.');
+            setStatus('error');
+            return;
+        }
+
+        const editorParams = new URLSearchParams({
+            designPrompt: newPrompt.trim() || initialPrompt,
+            imageUrl,
+            aspectRatio: image?.aspectRatio || '5:7',
+        });
+
+        if (image?.id) {
+            editorParams.set('imageId', image.id);
+        }
+
+        router.push(`/create/editor?${editorParams.toString()}`);
+    };
+
+    const handleApprove = () => {
+        void (async () => {
+            try {
+                let approvedImage = generatedImage;
+
+                if (generatedImage?.id) {
+                    approvedImage = await imageApi.upscale(generatedImage.id);
+                    setGeneratedImage(approvedImage);
+                }
+
+                if (approvedImage?.imageUrl) {
+                    setGeneratedImages(prev => [approvedImage!.imageUrl!, ...prev.filter(url => url !== approvedImage!.imageUrl)]);
+                }
+
+                openEditor(approvedImage);
+            } catch (err) {
+                console.error('Failed to upscale approved image:', err);
+                setError(err instanceof Error ? err.message : 'Failed to upscale image');
+                setStatus('error');
+            }
+        })();
+    };
+
     const handleApproveWithEdit = (req: string) => {
         console.log("Edit request saved:", req);
-        router.push('/music/generate');
+        openEditor(generatedImage);
     };
 
     const handleKeepTrying = () => {
@@ -84,7 +133,7 @@ export default function GeneratePage() {
     return (
         <div className="min-h-screen bg-[#fafafa] flex flex-col items-center py-12 px-4 relative">
             <h1 className="text-3xl font-black text-gray-900 mb-8">AI Generation Canvas</h1>
-            
+
             <div className="w-full max-w-[400px] aspect-[10/14] bg-white rounded-3xl shadow-xl overflow-hidden relative flex flex-col items-center justify-center border-4 border-gray-100">
                 {status === 'loading' && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm z-10 text-center px-6 transition-all">
@@ -114,7 +163,7 @@ export default function GeneratePage() {
                 <div className="mt-8 w-full max-w-[400px] bg-white p-6 rounded-3xl shadow-xl border border-gray-100 relative animate-in slide-in-from-bottom-4">
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border-t border-l border-gray-100 rotate-45"></div>
                     <label className="block text-sm font-bold text-gray-800 mb-3 text-center">Tell us what you'd like to see changed:</label>
-                    <textarea 
+                    <textarea
                         className="w-full border-2 border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:border-pink-500 resize-none transition"
                         rows={3}
                         value={newPrompt}
@@ -138,7 +187,7 @@ export default function GeneratePage() {
                 />
             )}
 
-            <PricingPopup 
+            <PricingPopup
                 isOpen={showPricingPopup}
                 onClose={() => {
                    setShowPricingPopup(false);
@@ -146,5 +195,13 @@ export default function GeneratePage() {
                 }}
             />
         </div>
+    );
+}
+
+export default function GeneratePage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-[#fafafa]" />}>
+            <GeneratePageContent />
+        </Suspense>
     );
 }

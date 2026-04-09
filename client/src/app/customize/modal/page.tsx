@@ -82,7 +82,7 @@ export default function CustomizeModalPage() {
         <div className="px-8 py-8 border-b border-[#e8e8e8]">
           <div className="flex items-center justify-center gap-4">
             <div className="flex flex-col items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${currentStep === 'upload' ? 'bg-[#444] text-white' : currentStep !== 'upload' ? 'bg-[#4caf50] text-white' : 'bg-[#e8e8e8] text-[#999]'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${currentStep === 'upload' ? 'bg-[#444] text-white' : 'bg-[#4caf50] text-white'}`}>
                 {currentStep !== 'upload' ? '✓' : '1'}
               </div>
               <span className="text-xs font-semibold mt-2 text-[#666]">Upload</span>
