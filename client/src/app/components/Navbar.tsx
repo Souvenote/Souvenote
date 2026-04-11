@@ -27,11 +27,17 @@ const NAV_LINKS = [
     subtext: 'Designs and songs are automatically saved for 30 days.',
     href: '/my-cards',
   },
+  {
+    label: 'Calendar',
+    subtext: 'Track birthdays, anniversaries, and other important dates.',
+    href: '/calendar',
+  },
 ];
 
 const HAMBURGER_LINKS = [
   { label: 'Home', href: '/' },
   { label: 'My Images/Songs', href: '/my-cards' },
+  { label: 'Calendar', href: '/calendar' },
   { label: 'Pricing', href: '/pricing' },
   { label: 'FAQ', href: '/faq' },
   { label: 'Profile (Currency/Language)', href: '/profile' },
@@ -175,6 +181,13 @@ export default function Navbar() {
                       className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
                     >
                       Account settings
+                    </Link>
+                    <Link
+                      href="/referrals"
+                      onClick={() => setProfileOpen(false)}
+                      className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
+                    >
+                      Referrals & Rewards
                     </Link>
                     <button
                       onClick={handleLogout}

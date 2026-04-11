@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find c:/Users/rayan/OneDrive/Documents/GitHub/Souvenote/client/src/app/referral c:/Users/rayan/OneDrive/Documents/GitHub/Souvenote/client/src/app/calendar c:/Users/rayan/OneDrive/Documents/GitHub/Souvenote/client/src/app/components -name *.tsx)"
+    ]
+  }
+}

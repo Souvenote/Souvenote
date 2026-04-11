@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from './database/database.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -14,10 +15,14 @@ import { CardTemplatesModule } from './card-templates/card-templates.module';
 import { PremadeSongsModule } from './premade-songs/premade-songs.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { PurchasesModule } from './purchases/purchases.module';
+import { ReferralsModule } from './referrals/referrals.module';
+import { CalendarModule } from './calendar/calendar.module';
+import { ContactsModule } from './contacts/contacts.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     UsersModule,
     AuthModule,
@@ -32,6 +37,9 @@ import { PurchasesModule } from './purchases/purchases.module';
     PremadeSongsModule,
     DeliveryModule,
     PurchasesModule,
+    ReferralsModule,
+    CalendarModule,
+    ContactsModule,
   ],
 })
 export class AppModule {}

@@ -420,5 +420,114 @@ export const usersApi = {
   getMe: () => request<any>('/users/me'),
 };
 
+// Referrals API
+export const referralsApi = {
+  getLink: () => request<{ referralCode: string; referralLink: string }>('/referrals/link'),
+
+  sendInvite: (data: { inviteeEmail: string; sourceLocation?: string }) =>
+    request<{ success: boolean; message: string }>('/referrals/invite', {
+      method: 'POST',
+      body: data,
+    }),
+
+  getStats: () => request<any>('/referrals/stats'),
+
+  verify: (token: string) =>
+    request<{ success: boolean; message: string }>(`/referrals/verify/${token}`, {
+      method: 'POST',
+    }),
+
+  verifyToken: (token: string) =>
+    requestPublic<{ valid: boolean; referrerName: string; inviteeEmail: string }>(
+      `/referrals/verify-token/${token}`,
+    ),
+
+  collectInviteeInfo: (data: {
+    token: string;
+    fullName?: string;
+    birthday?: string;
+    street?: string;
+    city?: string;
+    province?: string;
+    postalCode?: string;
+    country?: string;
+  }) =>
+    requestPublic<{ success: boolean }>('/referrals/collect-invitee-info', {
+      method: 'POST',
+      body: data,
+    }),
+};
+
+// Calendar API
+export interface CalendarEventRecord {
+  id: string;
+  title: string;
+  description?: string;
+  eventDate: string;
+  circleId?: string | null;
+  occasionPersonId?: string | null;
+  reminderOffsetDays: number;
+  reminderSent: boolean;
+  createdAt: string;
+}
+
+export const calendarApi = {
+  getEvents: () => request<CalendarEventRecord[]>('/calendar/events'),
+
+  createEvent: (data: {
+    title: string;
+    description?: string;
+    eventDate: string;
+    circleId?: string;
+    occasionPersonId?: string;
+    reminderOffsetDays?: number;
+  }) => request<CalendarEventRecord>('/calendar/events', { method: 'POST', body: data }),
+
+  updateEvent: (id: string, data: Partial<{
+    title: string;
+    description: string;
+    eventDate: string;
+    reminderOffsetDays: number;
+    occasionPersonId: string;
+  }>) => request<CalendarEventRecord>(`/calendar/events/${id}`, { method: 'PATCH', body: data }),
+
+  deleteEvent: (id: string) => request<void>(`/calendar/events/${id}`, { method: 'DELETE' }),
+};
+
+// Contacts API
+export interface ContactRecord {
+  id: string;
+  ownerUserId: string;
+  contactName: string;
+  contactEmail?: string | null;
+  contactBirthday?: string | null;
+  mailingAddress?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const contactsApi = {
+  getAll: () => request<ContactRecord[]>('/contacts'),
+
+  create: (data: {
+    contactName: string;
+    contactEmail?: string;
+    contactBirthday?: string;
+    mailingAddress?: string;
+    notes?: string;
+  }) => request<ContactRecord>('/contacts', { method: 'POST', body: data }),
+
+  update: (id: string, data: Partial<{
+    contactName: string;
+    contactEmail: string;
+    contactBirthday: string;
+    mailingAddress: string;
+    notes: string;
+  }>) => request<ContactRecord>(`/contacts/${id}`, { method: 'PATCH', body: data }),
+
+  delete: (id: string) => request<void>(`/contacts/${id}`, { method: 'DELETE' }),
+};
+
 export { ApiError };
 export default request;
