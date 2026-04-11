@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { referralsApi } from '@/lib/api';
 
 interface ReferralStats {
   totalReferrals: number;
@@ -41,11 +41,11 @@ export default function ReferralsPage() {
   async function loadData() {
     try {
       const [linkRes, statsRes] = await Promise.all([
-        api.get('/referrals/link'),
-        api.get('/referrals/stats'),
+        referralsApi.getLink(),
+        referralsApi.getStats(),
       ]);
-      setReferralLink(linkRes.data.referralLink);
-      setStats(statsRes.data);
+      setReferralLink(linkRes.referralLink);
+      setStats(statsRes);
     } catch {
       // ignore
     }
@@ -57,7 +57,7 @@ export default function ReferralsPage() {
     setSending(true);
     setMessage('');
     try {
-      await api.post('/referrals/invite', { email: email.trim(), sourceLocation: 'referrals_page' });
+      await referralsApi.sendInvite({ inviteeEmail: email.trim(), sourceLocation: 'referrals_page' });
       setMessage(`Invite sent to ${email}!`);
       setEmail('');
       void loadData();
