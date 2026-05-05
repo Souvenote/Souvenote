@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { MurekaService } from './mureka.service';
 
+@Global()
 @Module({
   providers: [MurekaService],
   exports: [MurekaService],

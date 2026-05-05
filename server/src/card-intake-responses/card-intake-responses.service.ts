@@ -1,26 +1,70 @@
-import { Injectable } from '@nestjs/common';
-import { CreateCardIntakeResponseDto } from './dto/create-card-intake-response.dto';
-import { UpdateCardIntakeResponseDto } from './dto/update-card-intake-response.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import {
+  CardIntakeResponse,
+  FlowType,
+} from '../entities/card-intake-response.entity';
+
+export interface CreateIntakePayload {
+  userId: string;
+  flowType: FlowType;
+  path?: string;
+  payload: Record<string, any>;
+  assembledPrompt?: string;
+  imageId?: string;
+  cardId?: string;
+}
 
 @Injectable()
 export class CardIntakeResponsesService {
-  create(createCardIntakeResponseDto: CreateCardIntakeResponseDto) {
-    return 'This action adds a new cardIntakeResponse';
+  constructor(
+    @InjectRepository(CardIntakeResponse)
+    private readonly intakeRepository: Repository<CardIntakeResponse>,
+  ) {}
+
+  async create(data: CreateIntakePayload): Promise<CardIntakeResponse> {
+    const intake = this.intakeRepository.create({
+      userId: data.userId,
+      flowType: data.flowType,
+      path: data.path || null,
+      payload: data.payload,
+      assembledPrompt: data.assembledPrompt || null,
+      imageId: data.imageId || null,
+      cardId: data.cardId || null,
+    } as Partial<CardIntakeResponse>);
+
+    return this.intakeRepository.save(intake as CardIntakeResponse);
   }
 
-  findAll() {
-    return `This action returns all cardIntakeResponses`;
+  async findByUser(userId: string): Promise<CardIntakeResponse[]> {
+    return this.intakeRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} cardIntakeResponse`;
+  async findOne(id: string, userId: string): Promise<CardIntakeResponse> {
+    const intake = await this.intakeRepository.findOne({
+      where: { id, userId },
+    });
+
+    if (!intake) {
+      throw new NotFoundException('Intake response not found');
+    }
+
+    return intake;
   }
 
-  update(id: number, updateCardIntakeResponseDto: UpdateCardIntakeResponseDto) {
-    return `This action updates a #${id} cardIntakeResponse`;
+  async linkToImage(id: string, imageId: string, userId: string): Promise<CardIntakeResponse> {
+    const intake = await this.findOne(id, userId);
+    intake.imageId = imageId;
+    return this.intakeRepository.save(intake);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} cardIntakeResponse`;
+  async linkToCard(id: string, cardId: string, userId: string): Promise<CardIntakeResponse> {
+    const intake = await this.findOne(id, userId);
+    intake.cardId = cardId;
+    return this.intakeRepository.save(intake);
   }
 }

@@ -1,34 +1,23 @@
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
-  IsEnum,
+  IsIn,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
 } from 'class-validator';
-import { RecraftRasterModel } from '../../recraft/recraft.service';
 
 export enum AspectRatio {
-  PORTRAIT = '5:7',
-  LANDSCAPE = '7:5',
+  PORTRAIT = '3:4',
+  LANDSCAPE = '4:3',
   SQUARE = '1:1',
+  PORTRAIT_5_7 = '5:7',
+  LANDSCAPE_7_5 = '7:5',
 }
 
-export enum ResolutionTier {
-  HALF_K = '0.5k',
-  ONE_K = '1k',
-  TWO_K = '2k',
-  FOUR_K = '4k',
-}
-
-export enum ReferenceBaseStyle {
-  ANY = 'any',
-  REALISTIC_IMAGE = 'realistic_image',
-  DIGITAL_ILLUSTRATION = 'digital_illustration',
-  VECTOR_ILLUSTRATION = 'vector_illustration',
-  ICON = 'icon',
-}
+export type ImageModel = 'gpt_image_2' | 'gpt_image_2_edit';
 
 export class CreateImageDto {
   @IsString()
@@ -43,21 +32,29 @@ export class CreateImageDto {
   @IsOptional()
   cardId?: string;
 
-  @IsEnum(AspectRatio)
-  @IsOptional()
-  aspectRatio?: AspectRatio;
-
-  @IsEnum(ResolutionTier)
-  @IsOptional()
-  resolutionTier?: ResolutionTier;
-
-  @IsEnum(RecraftRasterModel)
-  @IsOptional()
-  model?: RecraftRasterModel;
-
   @IsString()
   @IsOptional()
-  style?: string;
+  aspectRatio?: string;
+
+  @IsString()
+  @IsIn(['gpt_image_2', 'gpt_image_2_edit'])
+  @IsOptional()
+  imageModel?: ImageModel;
+
+  @IsString()
+  @IsIn(['build_my_card'])
+  @IsOptional()
+  cardType?: string;
+
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try { return JSON.parse(value); } catch { return value; }
+    }
+    return value;
+  })
+  @IsObject()
+  @IsOptional()
+  intake?: Record<string, any>;
 
   @IsUUID()
   @IsOptional()
@@ -68,7 +65,8 @@ export class CreateImageDto {
   @IsOptional()
   identityPreservation?: boolean;
 
-  @IsEnum(ReferenceBaseStyle)
+  @IsString()
+  @IsIn(['preserve', 'transform', 'enhance'])
   @IsOptional()
-  referenceBaseStyle?: ReferenceBaseStyle;
+  imageUsageMode?: string;
 }

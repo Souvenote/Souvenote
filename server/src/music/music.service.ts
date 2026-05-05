@@ -87,7 +87,11 @@ export class MusicService {
       );
     }
 
-    const preparedRequest = await this.prepareGenerationRequest(dto);
+    const cardMessage = dto.cardId
+      ? await this.readCardMessage(dto.cardId, userId)
+      : undefined;
+
+    const preparedRequest = await this.prepareGenerationRequest(dto, cardMessage);
 
     const balanceBefore = user.songCreditBalance;
     user.songCreditBalance -= 1;
@@ -136,14 +140,14 @@ export class MusicService {
     const song = this.songRepository.create({
       userId,
       cardId: preparedRequest.cardId,
-      murekaTaskId: murekaResponse.id,
+      providerTaskId: murekaResponse.id,
       prompt: preparedRequest.rawPrompt,
       engineeredPrompt: preparedRequest.engineeredPrompt,
       lyrics: preparedRequest.lyrics,
       style: preparedRequest.style,
       status: SongStatus.GENERATING,
       generationMethod: preparedRequest.generationMethod,
-      murekaModel: murekaResponse.model,
+      providerModel: murekaResponse.model || 'mureka-auto',
       expiresAt,
     });
 
@@ -178,11 +182,11 @@ export class MusicService {
     }
 
     try {
-      const queryResult = await this.murekaService.queryTask(song.murekaTaskId);
+      const queryResult = await this.murekaService.queryTask(song.providerTaskId!);
       const providerStatus = (queryResult.status || '').toLowerCase();
 
       this.logger.log(
-        `Mureka task ${song.murekaTaskId} status=${providerStatus}`,
+        `Mureka task ${song.providerTaskId} status=${providerStatus}`,
       );
 
       if (this.successStatuses.has(providerStatus)) {
@@ -193,6 +197,34 @@ export class MusicService {
           this.logger.warn(
             `Song ${song.id} succeeded but no audio URL was returned by Mureka`,
           );
+        }
+
+        const duration = this.extractDuration(queryResult);
+        if (duration && duration > 75 && song.retryCount < 1) {
+          this.logger.warn(
+            `Song ${song.id} duration=${duration}s exceeds 75s cap, retrying`,
+          );
+
+          await this.refundCredit(userId, song.id);
+
+          song.retryCount += 1;
+          const retryTask = await this.murekaService.generateSong({
+            prompt: song.engineeredPrompt || song.prompt,
+            lyrics: song.lyrics,
+            model: song.providerModel || 'auto',
+          });
+
+          song.providerTaskId = retryTask.id;
+          song.providerModel = retryTask.model || song.providerModel;
+          song.status = SongStatus.GENERATING;
+
+          await this.songRepository.save(song);
+
+          this.logger.log(
+            `Song ${song.id} resubmitted for retry: newTaskId=${retryTask.id}`,
+          );
+
+          return song;
         }
 
         this.logger.log(
@@ -210,7 +242,7 @@ export class MusicService {
       await this.songRepository.save(song);
     } catch (error) {
       this.logger.error(
-        `Failed to query Mureka task ${song.murekaTaskId}: ${String(error)}`,
+        `Failed to query Mureka task ${song.providerTaskId}: ${String(error)}`,
       );
     }
 
@@ -299,7 +331,8 @@ export class MusicService {
   }
 
   async generateLyrics(prompt: string) {
-    return this.murekaService.generateLyrics(prompt);
+    const guardedPrompt = this.promptEngineeringService.applyLyricGuardrail(prompt);
+    return this.murekaService.generateLyrics(guardedPrompt);
   }
 
   async enhancePrompt(prompt: string) {
@@ -350,8 +383,31 @@ export class MusicService {
     return song;
   }
 
+  private async readCardMessage(
+    cardId: string,
+    userId: string,
+  ): Promise<string | undefined> {
+    const card = await this.cardRepository.findOne({
+      where: { id: cardId, userId },
+    });
+
+    if (!card) return undefined;
+
+    const personalizationData = card.personalizationData as
+      | { personalMessage?: string; insideMessage?: string }
+      | undefined;
+
+    return (
+      card.cardMessage
+      || personalizationData?.personalMessage
+      || personalizationData?.insideMessage
+      || undefined
+    );
+  }
+
   private async prepareGenerationRequest(
     dto: GenerateSongDto,
+    cardMessage?: string,
   ): Promise<PreparedGenerationRequest> {
     switch (dto.mode) {
       case 'guided': {
@@ -389,6 +445,7 @@ export class MusicService {
       case 'card_based': {
         const builtPrompt = await this.promptEngineeringService.buildCardBasedPrompt(
           dto.designPrompt!,
+          cardMessage,
         );
 
         const lyrics = await this.generateAndTagLyrics(builtPrompt.lyricsPrompt);
@@ -438,7 +495,7 @@ export class MusicService {
           lyrics,
           lyricsPrompt,
           style: dto.style,
-          model: dto.model || 'mureka-8',
+          model: dto.model || 'auto',
           cardId: dto.cardId || undefined,
           generationMethod: GenerationMethod.MANUAL_PROMPT,
         };
@@ -458,15 +515,18 @@ export class MusicService {
     }
 
     try {
-      const lyricsResult = await this.murekaService.generateLyrics(lyricsPrompt);
+      const guardedPrompt = this.promptEngineeringService.applyLyricGuardrail(lyricsPrompt);
+      const lyricsResult = await this.murekaService.generateLyrics(guardedPrompt);
       if (!lyricsResult.lyrics?.trim()) {
         return undefined;
       }
 
-      return await this.promptEngineeringService.addStructuralTags(
+      const tagged = await this.promptEngineeringService.addStructuralTags(
         lyricsResult.lyrics,
         context,
       );
+
+      return this.promptEngineeringService.enforceEnvelope(tagged);
     } catch (error) {
       this.logger.warn(`Lyrics generation failed, continuing without lyrics: ${String(error)}`);
       return undefined;
@@ -595,6 +655,22 @@ export class MusicService {
     };
   }
 
+  private extractDuration(queryResult: MurekaSongQueryResponse): number | undefined {
+    if (queryResult.duration) {
+      return this.normalizeDuration(queryResult.duration);
+    }
+
+    if (queryResult.choice?.[0]?.duration) {
+      return this.normalizeDuration(queryResult.choice[0].duration);
+    }
+
+    if (queryResult.choices?.[0]?.duration) {
+      return this.normalizeDuration(queryResult.choices[0].duration);
+    }
+
+    return undefined;
+  }
+
   private applySongQueryResult(
     song: Song,
     queryResult: MurekaSongQueryResponse,
@@ -626,7 +702,7 @@ export class MusicService {
 
   private async refreshSongFromProvider(song: Song): Promise<boolean> {
     try {
-      const queryResult = await this.murekaService.queryTask(song.murekaTaskId);
+      const queryResult = await this.murekaService.queryTask(song.providerTaskId!);
       const hasChanges = this.applySongQueryResult(song, queryResult, {
         preserveExistingTitle: true,
       });

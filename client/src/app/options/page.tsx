@@ -187,7 +187,7 @@ export default function OptionsPage() {
               </div>
 
               <button 
-                onClick={() => handleOptionClick('/customize')}
+                onClick={() => handleOptionClick('/cards')}
                 className="w-full mt-6 px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-lg transition-colors"
               >
                 Browse Templates
@@ -253,7 +253,7 @@ export default function OptionsPage() {
               </div>
 
               <button 
-                onClick={() => handleOptionClick('/customize?ready=true')}
+                onClick={() => handleOptionClick('/cards')}
                 className="w-full px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-lg transition-colors"
                >
                 See All Cards

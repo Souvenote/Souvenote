@@ -9,15 +9,14 @@ let activePollSession = 0;
 export type GenerationMethod = 'card_based' | 'guided' | 'manual_prompt' | 'premade';
 export type CreationChoiceView = 'entry' | 'create_own';
 export type FlowStep =
-  | 'initial'         // Add Song / Skip modal
-  | 'credits_check'   // Insufficient credits
-  | 'creation_choice' // Based on card or custom?
-  | 'premade_browse'  // Browse ready songs
-  | 'guided'          // Guided questionnaire
-  | 'manual'          // Manual prompt
+  | 'credits_check'
+  | 'creation_choice'
+  | 'premade_browse'
+  | 'guided'
+  | 'manual'
   | 'generating'      // Waiting for Mureka
-  | 'completed'       // Song ready
-  | 'failed';         // Generation failed
+  | 'completed'
+  | 'failed';
 
 export interface GeneratedSong {
   id: string;
@@ -35,38 +34,32 @@ export interface GeneratedSong {
 }
 
 interface MusicState {
-  // Flow state
   currentStep: FlowStep;
   creationChoiceView: CreationChoiceView;
-  
-  // Generation
+
   currentSongId: string | null;
   generatedSong: GeneratedSong | null;
   generationMethod: GenerationMethod | null;
   isPolling: boolean;
   isStartingGeneration: boolean;
 
-  // Card context
   cardId: string | null;
   cardDesignPrompt: string | null;
 
-  // Credits
   songCredits: number;
   imageCredits: number;
 
-  // Error
   error: string | null;
 
-  // Actions
   setStep: (step: FlowStep) => void;
   setCreationChoiceView: (view: CreationChoiceView) => void;
   setCardContext: (cardId: string | null, designPrompt: string | null) => void;
   setCredits: (image: number, song: number) => void;
   fetchCredits: () => Promise<void>;
-  
+
   startGeneration: (params: GenerateSongRequest) => Promise<void>;
   selectPremadeSong: (premadeSongId: string) => Promise<void>;
-  
+
   pollStatus: () => Promise<void>;
   stopPolling: () => void;
   linkSongToCard: (cardId: string) => Promise<void>;
@@ -74,7 +67,7 @@ interface MusicState {
 }
 
 export const useMusicStore = create<MusicState>((set, get) => ({
-  currentStep: 'initial',
+  currentStep: 'creation_choice',
   creationChoiceView: 'entry',
   currentSongId: null,
   generatedSong: null,
@@ -142,7 +135,6 @@ export const useMusicStore = create<MusicState>((set, get) => ({
         isStartingGeneration: false,
       });
 
-      // Start polling
       void get().pollStatus();
     } catch (err) {
       const isInsufficientCredits =
@@ -232,7 +224,6 @@ export const useMusicStore = create<MusicState>((set, get) => ({
           return;
         }
 
-        // Still generating - poll again in 4 seconds
         if (get().isPolling) {
           activePollTimer = setTimeout(() => {
             void poll();
@@ -285,7 +276,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   resetFlow: () => {
     get().stopPolling();
     set({
-      currentStep: 'initial',
+      currentStep: 'creation_choice',
       creationChoiceView: 'entry',
       currentSongId: null,
       generatedSong: null,

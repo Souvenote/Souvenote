@@ -28,4 +28,8 @@ export class CreateGreetingCardDto {
 
   @IsOptional()
   personalizationData?: Record<string, any>;
+
+  @IsOptional()
+  @IsString()
+  cardMessage?: string;
 }

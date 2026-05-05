@@ -2,7 +2,11 @@
 
 import { useMusicStore } from '@/stores/music-store';
 
-export default function SongCreationChoice() {
+interface SongCreationChoiceProps {
+  onSkip: () => void;
+}
+
+export default function SongCreationChoice({ onSkip }: SongCreationChoiceProps) {
   const {
     creationChoiceView,
     setCreationChoiceView,
@@ -23,11 +27,6 @@ export default function SongCreationChoice() {
       setStep('credits_check');
       return;
     }
-  };
-
-  const handleBackToInitial = () => {
-    setCreationChoiceView('entry');
-    setStep('initial');
   };
 
   const handleBackToEntry = () => {
@@ -75,25 +74,15 @@ export default function SongCreationChoice() {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         {creationChoiceView === 'entry' ? (
           <>
-            <button
-              onClick={handleBackToInitial}
-              className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-gray-600 cursor-pointer"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back
-            </button>
-
-            <h2 className="text-2xl font-bold text-center mb-2">Create Your Song</h2>
+            <h2 className="text-2xl font-bold text-center mb-2">Add a Song</h2>
             <p className="text-gray-500 text-center mb-8">
-              Start from your card or build your own song from scratch.
+              All AI-generated songs are original compositions created just for your card.
             </p>
 
             <div className="space-y-4">
               <ChoiceCard
-                title="Based on your card design"
-                description="We&apos;ll read your card direction and turn it into a personalized song automatically."
+                title="Match the vibe of your card"
+                description="We&apos;ll read your card&apos;s design, colors, and message to create a song that feels made for it."
                 onClick={() => {
                   if (!cardDesignPrompt) return;
 
@@ -115,28 +104,36 @@ export default function SongCreationChoice() {
               />
 
               <ChoiceCard
-                title="Create my own"
-                description="Choose a guided questionnaire or write your own prompt with optional AI enhancement."
+                title="Make it yourself"
+                description="Pick a guided questionnaire or write your own prompt with full control."
                 onClick={handleCreateOwn}
                 disabled={isStartingGeneration}
                 iconPath="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
               />
 
               <ChoiceCard
-                title="Choose a Ready Song"
-                description="Browse curated songs by occasion and mood. These do not use AI song credits."
-                onClick={() => {
-                  setCreationChoiceView('entry');
-                  setStep('premade_browse');
-                }}
+                title="Skip for now"
+                description="Send your card without a song. You can always come back and add one later."
+                onClick={onSkip}
                 disabled={isStartingGeneration}
-                iconPath="M3 10.5l9-6 9 6M4.5 9.75V19.5A1.5 1.5 0 006 21h12a1.5 1.5 0 001.5-1.5V9.75M9 21V12h6v9"
+                iconPath="M6 18L18 6M6 6l12 12"
               />
             </div>
 
+            <button
+              onClick={() => {
+                setCreationChoiceView('entry');
+                setStep('premade_browse');
+              }}
+              disabled={isStartingGeneration}
+              className="w-full mt-5 py-3 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Or browse our ready-to-send catalog &rarr;
+            </button>
+
             {!canGenerateAi && (
-              <p className="mt-6 text-center text-sm text-amber-600">
-                You&apos;re out of AI song credits, but Ready Songs are still available.
+              <p className="mt-4 text-center text-sm text-amber-600">
+                You&apos;re out of AI song credits, but ready-to-send songs are still available.
               </p>
             )}
           </>
@@ -154,11 +151,11 @@ export default function SongCreationChoice() {
 
             {!canGenerateAi ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                Add AI song credits to generate a custom track, or go back and choose a Ready Song instead.
+                Add AI song credits to generate a custom track, or go back and choose a ready-to-send song instead.
               </div>
             ) : null}
 
-            <h2 className="text-2xl font-bold text-center mb-2">Create My Own</h2>
+            <h2 className="text-2xl font-bold text-center mb-2">Make It Yourself</h2>
             <p className="text-gray-500 text-center mb-8">
               Pick the level of control you want for this song.
             </p>

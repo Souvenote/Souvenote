@@ -84,7 +84,7 @@ export class PremadeSongsService {
     const song = this.songRepository.create({
       userId,
       premadeSongId: premadeSong.id,
-      murekaTaskId: premadeSong.murekaTaskId || `premade-${premadeSong.slug}`,
+      providerTaskId: premadeSong.providerTaskId || `premade-${premadeSong.slug}`,
       title: premadeSong.title,
       prompt: premadeSong.prompt,
       engineeredPrompt: premadeSong.prompt,
@@ -94,10 +94,10 @@ export class PremadeSongsService {
       duration: premadeSong.duration,
       status: SongStatus.COMPLETED,
       generationMethod: GenerationMethod.PREMADE,
-      murekaModel: premadeSong.murekaModel || 'catalog',
+      providerModel: premadeSong.providerModel || 'catalog',
       expiresAt,
-    });
+    } as Partial<Song>);
 
-    return this.songRepository.save(song);
+    return this.songRepository.save(song as Song);
   }
 }

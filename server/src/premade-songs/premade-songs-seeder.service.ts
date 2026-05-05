@@ -73,8 +73,8 @@ export class PremadeSongsSeederService {
           style: entry.style,
           audioUrl: extractedSong.audioUrl,
           duration: extractedSong.duration,
-          murekaTaskId: task.id,
-          murekaModel: resolvedSong.model || task.model,
+          providerTaskId: task.id,
+          providerModel: resolvedSong.model || task.model,
           isActive: true,
           sortOrder: entry.sortOrder,
         } satisfies Partial<PremadeSong>);
@@ -110,13 +110,13 @@ export class PremadeSongsSeederService {
     });
 
     for (const record of records) {
-      if (!record.murekaTaskId) {
+      if (!record.providerTaskId) {
         summary.skipped += 1;
         continue;
       }
 
       try {
-        const queryResult = await this.murekaService.queryTask(record.murekaTaskId);
+        const queryResult = await this.murekaService.queryTask(record.providerTaskId);
         const extractedSong = this.extractSongResult(queryResult);
 
         if (!extractedSong.audioUrl) {

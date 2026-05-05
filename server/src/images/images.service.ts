@@ -16,16 +16,11 @@ import {
   TransactionType,
   CreditType,
 } from '../entities/credit-transaction.entity';
-import {
-  RecraftService,
-  type UploadedReferenceImage,
-} from '../recraft/recraft.service';
-import {
-  CreateImageDto,
-  AspectRatio,
-  ReferenceBaseStyle,
-  ResolutionTier,
-} from './dto/create-image.dto';
+import { CreateImageDto, type ImageModel } from './dto/create-image.dto';
+import { ImageProviderFactory } from './providers/image-provider.factory';
+import { CardPromptService } from '../card-prompts/card-prompt.service';
+import { CardIntakeResponsesService } from '../card-intake-responses/card-intake-responses.service';
+import { FlowType } from '../entities/card-intake-response.entity';
 
 interface UploadedReferenceFile {
   buffer: Buffer;
@@ -46,79 +41,10 @@ export class ImagesService {
     private readonly cardRepository: Repository<GreetingCard>,
     @InjectRepository(CreditTransaction)
     private readonly creditTransactionRepository: Repository<CreditTransaction>,
-    private readonly recraftService: RecraftService,
+    private readonly providerFactory: ImageProviderFactory,
+    private readonly cardPromptService: CardPromptService,
+    private readonly cardIntakeResponsesService: CardIntakeResponsesService,
   ) {}
-
-  private toUploadedReferenceImages(
-    files: UploadedReferenceFile[],
-  ): UploadedReferenceImage[] {
-    return files
-      .filter((file) => file?.buffer?.length)
-      .map((file) => ({
-        buffer: file.buffer,
-        filename: file.originalname,
-        mimeType: file.mimetype,
-      }));
-  }
-
-  private resolveReferenceBaseStyle(
-    dto: CreateImageDto,
-  ): 'any' | 'realistic_image' | 'digital_illustration' | 'vector_illustration' | 'icon' {
-    return dto.referenceBaseStyle || ReferenceBaseStyle.DIGITAL_ILLUSTRATION;
-  }
-
-  private async submitGeneration(
-    dto: CreateImageDto,
-    referenceImages: UploadedReferenceFile[],
-  ) {
-    const aspectRatio = dto.aspectRatio || AspectRatio.PORTRAIT;
-    const resolutionTier = dto.resolutionTier || ResolutionTier.ONE_K;
-    const uploadedReferenceImages = this.toUploadedReferenceImages(referenceImages);
-
-    if (!uploadedReferenceImages.length) {
-      return this.recraftService.generateImage({
-        prompt: dto.prompt,
-        aspectRatio,
-        resolutionTier,
-        negativePrompt: dto.negativePrompt,
-        model: dto.model,
-        style: dto.style,
-        styleId: dto.styleId,
-      });
-    }
-
-    let derivedStyleId = dto.styleId;
-    if (!derivedStyleId) {
-      const createdStyle = await this.recraftService.createStyleReference({
-        files: uploadedReferenceImages,
-        baseStyle: this.resolveReferenceBaseStyle(dto),
-      });
-      derivedStyleId = createdStyle.styleId;
-    }
-
-    if (dto.identityPreservation) {
-      return this.recraftService.generateFromReferenceImage({
-        prompt: dto.prompt,
-        aspectRatio,
-        resolutionTier,
-        negativePrompt: dto.negativePrompt,
-        style: derivedStyleId ? undefined : dto.style,
-        styleId: derivedStyleId,
-        referenceImage: uploadedReferenceImages[0],
-        strength: uploadedReferenceImages.length > 1 ? 0.18 : 0.22,
-      });
-    }
-
-    return this.recraftService.generateImage({
-      prompt: dto.prompt,
-      aspectRatio,
-      resolutionTier,
-      negativePrompt: dto.negativePrompt,
-      model: dto.model,
-      style: derivedStyleId ? undefined : dto.style,
-      styleId: derivedStyleId,
-    });
-  }
 
   async generateImage(
     userId: string,
@@ -141,10 +67,41 @@ export class ImagesService {
       );
     }
 
-    // Deduct credit before generation (mirrors music.service.ts:92-105)
-    const balanceBefore = user.imageCreditBalance;
-    user.imageCreditBalance -= 1;
-    await this.userRepository.save(user);
+    const model: ImageModel = dto.imageModel || 'gpt_image_2';
+    const provider = this.providerFactory.getProvider(model);
+    const aspectRatio =
+      (dto.aspectRatio as '3:4' | '4:3' | '1:1') || '3:4';
+
+    let effectivePrompt = dto.prompt;
+    let intakeResponseId: string | undefined;
+
+    if (dto.cardType === 'build_my_card' && dto.intake) {
+      const intake = dto.intake as any;
+      const promptResult =
+        this.cardPromptService.assembleBuildMyCardPrompt(intake);
+      effectivePrompt = promptResult.assembledPrompt;
+
+      const intakeRecord = await this.cardIntakeResponsesService.create({
+        userId,
+        flowType: FlowType.BUILD_MY_CARD,
+        path: intake.image_usage_mode || undefined,
+        payload: {
+          rawIntake: intake,
+          jsonTemplate: promptResult.jsonTemplate,
+        },
+        assembledPrompt: promptResult.assembledPrompt,
+      });
+      intakeResponseId = intakeRecord.id;
+    }
+
+    const deductionUser = await this.userRepository.findOne({ where: { id: userId } });
+    if (!deductionUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const balanceBefore = deductionUser.imageCreditBalance;
+    deductionUser.imageCreditBalance -= 1;
+    await this.userRepository.save(deductionUser);
 
     const creditTransaction = this.creditTransactionRepository.create({
       userId,
@@ -152,31 +109,47 @@ export class ImagesService {
       creditType: CreditType.IMAGE,
       amount: -1,
       balanceBefore,
-      balanceAfter: user.imageCreditBalance,
-      description: 'Image generation',
+      balanceAfter: deductionUser.imageCreditBalance,
+      description: `Image generation — ${((dto.intake as any)?.image_usage_mode || 'default')} mode`,
     });
     await this.creditTransactionRepository.save(creditTransaction);
 
-    let recraftResponse;
+    const referenceImageUrls = referenceImages.length > 0
+      ? referenceImages.map((file) =>
+          `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+        )
+      : undefined;
+
+    let providerResponse;
     try {
-      recraftResponse = await this.submitGeneration(dto, referenceImages);
+      providerResponse = await provider.generate({
+        prompt: effectivePrompt,
+        aspectRatio,
+        negativePrompt: dto.negativePrompt,
+        referenceImageUrls,
+        identityPreservation: dto.identityPreservation,
+      });
     } catch (error) {
       this.logger.warn(
-        `Recraft failed, refunding credit for user ${userId}`,
+        `Image generation failed, refunding credit for user ${userId}`,
       );
-      user.imageCreditBalance += 1;
-      await this.userRepository.save(user);
 
-      const refundTransaction = this.creditTransactionRepository.create({
-        userId,
-        type: TransactionType.REFUND,
-        creditType: CreditType.IMAGE,
-        amount: 1,
-        balanceBefore: user.imageCreditBalance - 1,
-        balanceAfter: user.imageCreditBalance,
-        description: 'Image generation failed - credit refunded',
-      });
-      await this.creditTransactionRepository.save(refundTransaction);
+      const refundUser = await this.userRepository.findOne({ where: { id: userId } });
+      if (refundUser) {
+        refundUser.imageCreditBalance += 1;
+        await this.userRepository.save(refundUser);
+
+        const refundTransaction = this.creditTransactionRepository.create({
+          userId,
+          type: TransactionType.REFUND,
+          creditType: CreditType.IMAGE,
+          amount: 1,
+          balanceBefore: refundUser.imageCreditBalance - 1,
+          balanceAfter: refundUser.imageCreditBalance,
+          description: 'Image generation failed - credit refunded',
+        });
+        await this.creditTransactionRepository.save(refundTransaction);
+      }
 
       throw error;
     }
@@ -187,25 +160,33 @@ export class ImagesService {
     const image = this.imageRepository.create({
       userId,
       cardId: dto.cardId,
-      prompt: dto.prompt,
+      prompt: effectivePrompt,
       negativePrompt: dto.negativePrompt,
-      imageUrl: recraftResponse.imageUrl,
-      provider: 'recraft',
-      providerModel: recraftResponse.model,
-      aspectRatio: dto.aspectRatio || AspectRatio.PORTRAIT,
-      resolutionTier: recraftResponse.resolutionTier,
-      width: recraftResponse.width,
-      height: recraftResponse.height,
+      imageUrl: providerResponse.imageUrl,
+      provider: `fal_${model}`,
+      providerModel: providerResponse.model,
+      providerTaskId: providerResponse.providerTaskId || undefined,
+      aspectRatio,
+      width: providerResponse.width,
+      height: providerResponse.height,
       status: ImageStatus.COMPLETED,
       expiresAt,
-    });
+    } as Partial<GeneratedImage>);
 
-    const savedImage = await this.imageRepository.save(image);
+    const savedImage = await this.imageRepository.save(image as GeneratedImage);
 
     creditTransaction.referenceId = savedImage.id;
     await this.creditTransactionRepository.save(creditTransaction);
 
-    this.logger.log(`Image generated: imageId=${savedImage.id}`);
+    if (intakeResponseId) {
+      await this.cardIntakeResponsesService.linkToImage(
+        intakeResponseId,
+        savedImage.id,
+        userId,
+      );
+    }
+
+    this.logger.log(`Image generated: imageId=${savedImage.id} model=${model}`);
 
     return savedImage;
   }
@@ -313,23 +294,7 @@ export class ImagesService {
       throw new NotFoundException('Image URL not found');
     }
 
-    if (
-      image.status === ImageStatus.COMPLETED &&
-      ['2k', '4k'].includes(image.resolutionTier)
-    ) {
-      return image;
-    }
-
-    const upscaled = await this.recraftService.upscaleImage({
-      imageUrl: image.imageUrl,
-      mode,
-    });
-
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    image.imageUrl = upscaled.imageUrl;
-    image.resolutionTier = '2k';
-
-    await this.imageRepository.save(image);
 
     if (user) {
       const upscaleTransaction = this.creditTransactionRepository.create({
@@ -339,13 +304,13 @@ export class ImagesService {
         amount: 0,
         balanceBefore: user.imageCreditBalance,
         balanceAfter: user.imageCreditBalance,
-        description: `Image upscale (${mode})`,
+        description: `Image upscale (${mode}) - no-op for Fal.ai (GPT Image 2 generates at native res)`,
         referenceId: image.id,
       });
       await this.creditTransactionRepository.save(upscaleTransaction);
     }
 
-    this.logger.log(`Image ${imageId} upscaled with Recraft (${mode})`);
+    this.logger.log(`Image ${imageId} upscale requested (${mode}) - returning original`);
 
     return image;
   }

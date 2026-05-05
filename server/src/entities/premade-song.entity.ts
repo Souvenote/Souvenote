@@ -44,11 +44,11 @@ export class PremadeSong {
   @Column({ type: 'int', nullable: true })
   duration?: number;
 
-  @Column({ name: 'mureka_task_id', type: 'varchar', nullable: true })
-  murekaTaskId?: string;
+  @Column({ name: 'provider_task_id', type: 'varchar', nullable: true })
+  providerTaskId?: string;
 
-  @Column({ name: 'mureka_model', type: 'varchar', nullable: true })
-  murekaModel?: string;
+  @Column({ name: 'provider_model', type: 'varchar', nullable: true })
+  providerModel?: string;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;

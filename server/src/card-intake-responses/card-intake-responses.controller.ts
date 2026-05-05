@@ -1,34 +1,30 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CardIntakeResponsesService } from './card-intake-responses.service';
-import { CreateCardIntakeResponseDto } from './dto/create-card-intake-response.dto';
-import { UpdateCardIntakeResponseDto } from './dto/update-card-intake-response.dto';
+import { CognitoAuthGuard } from '../auth/cognito.guard';
+import { CurrentUser } from '../auth/user.decorator';
 
 @Controller('card-intake-responses')
+@UseGuards(CognitoAuthGuard)
 export class CardIntakeResponsesController {
   constructor(private readonly cardIntakeResponsesService: CardIntakeResponsesService) {}
 
-  @Post()
-  create(@Body() createCardIntakeResponseDto: CreateCardIntakeResponseDto) {
-    return this.cardIntakeResponsesService.create(createCardIntakeResponseDto);
-  }
-
   @Get()
-  findAll() {
-    return this.cardIntakeResponsesService.findAll();
+  async findByUser(@CurrentUser('sub') userId: string) {
+    return this.cardIntakeResponsesService.findByUser(userId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.cardIntakeResponsesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCardIntakeResponseDto: UpdateCardIntakeResponseDto) {
-    return this.cardIntakeResponsesService.update(+id, updateCardIntakeResponseDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.cardIntakeResponsesService.remove(+id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.cardIntakeResponsesService.findOne(id, userId);
   }
 }

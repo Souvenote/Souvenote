@@ -8,13 +8,15 @@ import { GreetingCardsModule } from './greeting-cards/greeting-cards.module';
 import { CreditTransactionsModule } from './credit-transactions/credit-transactions.module';
 import { ImagesModule } from './images/images.module';
 import { CardIntakeResponsesModule } from './card-intake-responses/card-intake-responses.module';
-import { MurekaModule } from './mureka/mureka.module';
 import { MusicModule } from './music/music.module';
 import { CardTemplatesModule } from './card-templates/card-templates.module';
 import { PremadeSongsModule } from './premade-songs/premade-songs.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { PurchasesModule } from './purchases/purchases.module';
-import { RecraftModule } from './recraft/recraft.module';
+import { FalModule } from './fal/fal.module';
+import { MurekaModule } from './mureka/mureka.module';
+import { CardPromptsModule } from './card-prompts/card-prompts.module';
+import { EditRequestsModule } from './edit-requests/edit-requests.module';
 
 @Module({
   imports: [
@@ -28,12 +30,14 @@ import { RecraftModule } from './recraft/recraft.module';
     CreditTransactionsModule,
     ImagesModule,
     CardIntakeResponsesModule,
-    MurekaModule,
     MusicModule,
     PremadeSongsModule,
     DeliveryModule,
     PurchasesModule,
-    RecraftModule,
+    MurekaModule,
+    FalModule,
+    CardPromptsModule,
+    EditRequestsModule,
   ],
 })
 export class AppModule {}

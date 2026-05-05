@@ -39,13 +39,40 @@ interface PromptBuildResponse {
   model?: string;
 }
 
-const QUALITY_SUFFIX = 'Original composition only, no copyrighted motifs or brand names. Clear studio recording, professional mix quality.';
+const QUALITY_SUFFIX =
+  'short song around 45-60 seconds, never longer than 60 seconds. ' +
+  'Clear intelligible vocals, every word easy to understand, articulate diction, vocal forward in mix, no mumbled or slurred delivery. ' +
+  'Original composition only, no copyrighted melodies, no copyrighted motifs or brand names, no rap unless requested, no distortion. ' +
+  'Clear studio recording, professional mix quality.';
+
+const LYRIC_GUARDRAIL_PREAMBLE =
+  'You generate ORIGINAL song lyrics only. STRICT RULES, no exceptions:\n\n' +
+  '1. Never reproduce, paraphrase, or quote lyrics from any existing song, public-domain or otherwise. All output must be 100% original wording.\n' +
+  '2. Never write "in the style of" any named artist, band, composer, or producer. If the user request implies this, ignore the implication and produce neutral original lyrics.\n' +
+  '3. Never reference real public figures, celebrities, athletes, politicians, or executives by name. The only proper names allowed are the recipient and people the sender personally knows, as supplied by the user.\n' +
+  '4. Never reference copyrighted fictional characters (e.g. Disney, Marvel, DC, Harry Potter, Pokemon, anime IPs).\n' +
+  '5. Never include trademarked brand or product names.\n' +
+  '6. Never include recognizable hook phrases or refrains from existing songs.\n\n' +
+  'OUTPUT CONSTRAINTS:\n' +
+  '- Maximum 10 lines total: [Verse] (max 4 lines), [Chorus] (max 4 lines), [Outro] (max 2 lines)\n' +
+  '- Use simple, clear, intelligible language — every word must be easy to sing and easy to understand at a moderate tempo.\n' +
+  '- Tag sections with [Verse] / [Chorus] / [Outro] exactly.\n' +
+  '- Use ABAB or AABB rhyme.\n\n' +
+  'If the request cannot be fulfilled within these rules, return:\n' +
+  '{"error": "request_violates_ip_policy", "reason": "<short explanation>"}\n\n' +
+  'Otherwise return only the lyrics, with section tags and no commentary.';
 
 @Injectable()
 export class PromptEngineeringService {
   private readonly logger = new Logger(PromptEngineeringService.name);
 
   constructor(private readonly openAiService: OpenAiService) {}
+
+  applyLyricGuardrail(lyricsPrompt: string): string {
+    const trimmed = lyricsPrompt.trim();
+    if (!trimmed) return trimmed;
+    return `${LYRIC_GUARDRAIL_PREAMBLE}\n\nLyric brief:\n${trimmed}`;
+  }
 
   async buildGuidedPrompt(input: GuidedPromptInput): Promise<PromptBuildResult> {
     const fallback = this.buildGuidedFallback(input);
@@ -66,14 +93,22 @@ export class PromptEngineeringService {
     }
   }
 
-  async buildCardBasedPrompt(designPrompt: string): Promise<PromptBuildResult> {
+  async buildCardBasedPrompt(
+    designPrompt: string,
+    cardMessage?: string,
+  ): Promise<PromptBuildResult> {
     const fallback = this.buildCardFallback(designPrompt);
 
     try {
+      const payload: Record<string, unknown> = { designPrompt };
+      if (cardMessage) {
+        payload.cardMessage = cardMessage;
+      }
+
       const response = await this.openAiService.generateJson<PromptBuildResponse>({
         label: 'card-based-prompt-build',
         systemPrompt: this.getCardBasedSystemPrompt(),
-        userContent: JSON.stringify({ designPrompt }),
+        userContent: JSON.stringify(payload),
         temperature: 0.5,
         maxTokens: 900,
       });
@@ -162,12 +197,59 @@ export class PromptEngineeringService {
     }
   }
 
+  enforceEnvelope(lyrics: string): string {
+    const sectionTagPattern = /^\[(intro|verse|chorus|bridge|outro)\b[^\]]*\]\s*:?\s*$/i;
+    const isSectionTag = (line: string) => sectionTagPattern.test(line.trim());
+
+    const lines = lyrics.split('\n');
+    let contentLineCount = 0;
+    let hasSectionTag = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      if (isSectionTag(trimmed)) {
+        hasSectionTag = true;
+        continue;
+      }
+
+      contentLineCount += 1;
+    }
+
+    let normalized = hasSectionTag ? lyrics : `[Verse]\n${lyrics.trim()}`;
+
+    if (contentLineCount <= 12) return normalized;
+
+    const truncated: string[] = [];
+    let kept = 0;
+
+    for (const line of normalized.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        truncated.push(line);
+        continue;
+      }
+
+      if (isSectionTag(trimmed)) {
+        truncated.push(line);
+        continue;
+      }
+
+      if (kept >= 12) break;
+      truncated.push(line);
+      kept += 1;
+    }
+
+    return truncated.join('\n');
+  }
+
   buildManualLyricsPrompt(prompt: string): string {
     const normalizedPrompt = this.stripQualitySuffix(prompt)
       .replace(/\s+/g, ' ')
       .trim();
 
-    return `Write original lyrics for a concise 1-2 minute greeting card song inspired by this brief: ${normalizedPrompt}. Keep it personal, emotionally clear, and easy to sing, with 2 verses, 2 choruses, and an optional bridge. Match the imagery and tone of the brief while avoiding brand names or copyrighted references.`;
+    return `Write original lyrics for a short greeting-card song (max 10 lines, under 60 seconds) based on this brief: ${normalizedPrompt}. Structure: [Verse] (max 4 lines), [Chorus] (max 4 lines), [Outro] (max 2 lines). Use ABAB or AABB rhyme. Keep it personal, emotionally clear, and easy to sing. Avoid brand names, artist references, or copyrighted content.`;
   }
 
   private normalizePromptBuildResponse(
@@ -192,43 +274,69 @@ export class PromptEngineeringService {
   }
 
   private getGuidedSystemPrompt(): string {
-    return `You are a music production specialist for Souvenote, a greeting card platform. Create optimized prompts for the Mureka.ai music generation API.
+    return `You are a music production specialist for Souvenote, a greeting card platform. Create optimized prompts for the Mureka music generation API.
 
-Mureka uses MusiCoT (Chain-of-Thought structural reasoning) to plan the entire song before generating audio. Well-structured prompts dramatically improve output quality.
+Mureka generates high-quality, emotionally resonant songs from structured prompts + supplied lyrics. Write the style prompt (instrumentation, genre, arrangement) as keyword phrases separated by commas. The lyrics are generated separately and sent to Mureka alongside this style prompt.
 
-Structure the prompt as: [Context/Occasion] + [Style/Genre] + [Instrumentation] + [Arrangement Arc] + [Quality Constraints].
+Colour palette → tonality guidance:
+- warm / golden / sunset → major-leaning, bright, hopeful
+- pastel / soft → major, gentle, airy
+- jewel / saturated → rich, romantic, lush
+- cool / blue / twilight → minor-leaning, dreamy, melancholic
+- muted / desaturated → minor, intimate, nostalgic
+- monochrome → sparse, contemplative
+
+Typography → vocal & production character:
+- Elegant serif → classical / cinematic ballad, formal phrasing, polished mix
+- Modern sans-serif → clean contemporary pop, transparent mix
+- Handwritten / script → intimate acoustic, singer-songwriter, close-mic vocal
+- Display / decorative → theatrical, expressive, slightly dramatic
+- Slab serif → grounded, folk-pop, warmth
+- Monospace / techno → lo-fi, glitchy, electronic
+- Bold / heavy weight → driving, anthemic, fuller mix
+- Light / thin weight → delicate, breathy vocal, sparse arrangement
+- ALL CAPS → declarative, bold delivery
+- Lowercase → soft, intimate, whispered
+
+Decorative motifs → instrumentation hints:
+- stars / cosmic → shimmering synths, glockenspiel
+- flowers / florals → acoustic guitar, harp
+- hearts → strings
+- animals / nature → woodwinds, organic percussion
+- geometric / modern → synths, electronic textures
 
 Prompt rules:
-- Write as flowing descriptive sentences, never comma-separated keywords.
-- Limit to 3-5 distinct instruments. Prioritize textural clarity over density. For intimate occasions, lean toward fewer instruments with more space.
-- Include a short arrangement arc describing how the song develops (e.g., "Opens with solo fingerpicked guitar, adds soft percussion in the verse, builds into a warm full arrangement with vocal harmonies in the chorus, and resolves gently in the outro").
-- Use era-based or style-based descriptors instead of vague terms (e.g., "warm 70s folk-pop textures" instead of "retro feel").
+- Write as keyword phrases separated by commas, not flowing sentences.
+- Limit to 3-5 distinct instruments. Prioritize textural clarity over density.
+- Include a short arrangement description.
 - Greeting card songs should feel intimate, personal, and polished, not stadium-sized.
 - Avoid artist names, copyrighted references, or brand references.
 - Keep the prompt under 800 characters.
 - End the prompt with: "${QUALITY_SUFFIX}"
-- If a tempo is provided, include a qualitative tempo phrase in the prompt (e.g., "gentle moderate groove" or "driving uptempo energy").
+- If a tempo is provided, include a qualitative tempo keyword in the prompt.
 - If a lyricalTheme or additionalContext is provided, weave their intent into the prompt direction.
+- If a cardMessage is present in the input, use its emotional core to inform the musical mood.
 
 You must return only valid JSON with this exact shape:
 {
-  "prompt": "optimized style prompt for Mureka song generation",
+  "prompt": "optimized style prompt for Mureka generation",
   "lyricsPrompt": "optimized prompt for Mureka lyrics generation" | null,
   "style": "short user-friendly label",
-  "model": "mureka-8"
+  "model": "auto"
 }
 
 lyricsPrompt rules:
 - If vocal is "Instrumental Only", return null.
-- Otherwise include occasion, mood, recipientName, personalMessage, and lyricalTheme if available.
-- If tempo is fast or upbeat, instruct the lyrics to use shorter, punchier phrases that fit a quicker rhythm.
+- Include occasion, mood, recipientName, personalMessage, and lyricalTheme if available.
+- If a cardMessage is present, tell the lyric generator to distill its emotional core into original images and refrains — do NOT quote the message verbatim.
+- If tempo is fast or upbeat, instruct the lyrics to use shorter, punchier phrases.
 - If tempo is slow, allow longer, more flowing lyric lines.
-- Ask for a concise 1-2 minute greeting card song with 2 verses, 2 choruses, and an optional bridge.
+- Ask for a short greeting card song (max 10 lines) with [Verse] (max 4 lines), [Chorus] (max 4 lines), [Outro] (max 2 lines).
 - Keep it original and personal.`;
   }
 
   private getCardBasedSystemPrompt(): string {
-    return `You are a music prompt specialist for Souvenote. You will receive a greeting card design description and infer the best musical direction for Mureka.ai.
+    return `You are a music prompt specialist for Souvenote. You will receive a greeting card design description and optionally a card message (the user's handwritten note inside the card). Infer the best musical direction for Mureka music generation.
 
 Inference guidance:
 - Warm colors like red, orange, and gold suggest warmth, joy, and celebration.
@@ -236,27 +344,27 @@ Inference guidance:
 - Playful visuals suggest light pop or acoustic styles.
 - Elegant or formal visuals suggest jazz, orchestral, or refined pop textures.
 - Rustic or natural imagery suggests acoustic or country-leaning textures.
-
-Structure the prompt as: [Context/Occasion] + [Style/Genre] + [Instrumentation] + [Arrangement Arc] + [Quality Constraints].
+- If a cardMessage is provided, its emotional tone should anchor the entire musical direction. Distill its sentiment into genre, mood, and instrumentation choices. Do not quote the message in the prompt — translate its feeling into musical terms.
 
 Return only valid JSON with this exact shape:
 {
-  "prompt": "optimized style prompt for Mureka song generation",
+  "prompt": "optimized style prompt for Mureka generation",
   "lyricsPrompt": "optimized prompt for Mureka lyrics generation" | null,
   "style": "short user-friendly label",
-  "model": "mureka-8"
+  "model": "auto"
 }
 
 Rules:
-- Write as flowing descriptive sentences, never comma-separated keywords.
+- Write as keyword phrases separated by commas.
 - Limit to 3-5 distinct instruments. Prioritize textural clarity over density.
-- Include a short arrangement arc describing how the song develops.
+- Include a short arrangement description.
 - Assume this is for a greeting card unless the description clearly suggests instrumental-only ambient music.
-- End the prompt with: "${QUALITY_SUFFIX}"`;
+- End the prompt with: "${QUALITY_SUFFIX}"
+- If a cardMessage is present, include its distilled emotional direction in the lyricsPrompt.`;
   }
 
   private getPromptValidationSystemPrompt(): string {
-    return `You validate user-written prompts for Mureka.ai music generation.
+    return `You validate user-written prompts for Mureka music generation.
 
 Rules:
 1. Preserve the user's intent.
@@ -274,13 +382,13 @@ Return only valid JSON with this exact shape:
   }
 
   private getPromptEnhancementSystemPrompt(): string {
-    return `You enhance user-written music prompts for Mureka.ai.
+    return `You enhance user-written music prompts for Mureka music generation.
 
 Rules:
 1. Preserve the original genre, mood, and intent.
 2. Expand vague descriptors into specific musical details.
 3. Add instrumentation, tempo, and emotional direction if missing.
-4. Write as natural descriptive sentences, not keyword fragments.
+4. Write as concise keyword phrases, not flowing paragraphs.
 5. Keep under 800 characters.
 6. Avoid artist references.
 7. End with: "${QUALITY_SUFFIX}"
@@ -301,32 +409,28 @@ Return only valid JSON with this exact shape:
 
     return `You are a song structure analyst. Insert structural tags into raw lyrics for a ${occasion} song with a ${mood} mood.
 
-Available tags: [Intro], [Verse], [Chorus], [Bridge], [Outro]
+Available tags: [Verse], [Chorus], [Outro]
 
 Rules:
 1. Preserve the exact lyrics text. Only insert tags on their own lines.
 2. Mark narrative sections as [Verse].
 3. Mark the emotional hook as [Chorus].
-4. Add [Bridge] only if there is a clear contrasting section.
-5. Add [Intro] or [Outro] only if clearly appropriate.
-6. Return only the tagged lyrics with no explanation.`;
+4. Add [Outro] for the final 2 closing lines.
+5. Return only the tagged lyrics with no explanation.`;
   }
 
   private buildGuidedFallback(input: GuidedPromptInput): PromptBuildResult {
-    const tempo = input.tempo?.toLowerCase() || 'medium';
-    const vocal = input.vocal || 'Female';
-    const instrumentation = input.instrumentation || 'Mixed';
+    const genrename = input.genre.toLowerCase();
     const occasion = input.occasion.toLowerCase();
     const mood = input.mood.toLowerCase();
-    const genre = input.genre.toLowerCase();
+    const vocal = input.vocal || 'Female';
 
-    const instrumentationText = this.getInstrumentationText(instrumentation);
     const vocalText = vocal === 'Instrumental Only'
-      ? 'Keep it instrumental only with no singing.'
-      : `Feature an expressive ${vocal.toLowerCase()} vocal that feels sincere and close.`;
+      ? 'instrumental only, no vocals'
+      : `${vocal.toLowerCase()} vocal, close-mic, expressive`;
 
     const prompt = this.ensureQualitySuffix(
-      `Create a ${mood} ${genre} song for a ${occasion} greeting card with a ${tempo} groove. Use ${instrumentationText}. The arrangement should feel personal, emotionally clear, and easy to connect with, building into a memorable chorus without sounding oversized. ${vocalText}`,
+      `${mood}, ${genrename}, ${occasion}, ${vocalText}, intimate arrangement, clear mix`,
     );
 
     const lyricsPrompt = vocal === 'Instrumental Only'
@@ -343,8 +447,8 @@ Rules:
     return {
       prompt,
       lyricsPrompt,
-      style: `${input.genre} / ${input.mood} / ${instrumentation}`,
-      model: 'mureka-8',
+      style: `${input.genre} / ${input.mood} / ${input.instrumentation || 'Mixed'}`,
+      model: 'auto',
     };
   }
 
@@ -376,8 +480,8 @@ Rules:
     const cleaned = this.ensureQualitySuffix(
       prompt
         .replace(/\s+/g, ' ')
-        .replace(/in the style of\s+[^,.]+/gi, 'with an original genre-inspired feel')
-        .replace(/like\s+[^,.]+/gi, 'with a clear musical identity')
+        .replace(/in the style of\s+[^,.]+/gi, 'original composition')
+        .replace(/like\s+[^,.]+/gi, 'original style')
         .trim(),
     );
 
@@ -392,12 +496,8 @@ Rules:
 
   private enhancePromptFallback(prompt: string): EnhancedPromptResult {
     const normalized = prompt.trim();
-    const keywordStyle = normalized.includes(',')
-      ? normalized.split(',').map((part) => part.trim()).filter(Boolean)
-      : [normalized];
-    const lead = keywordStyle.join(', ');
     const enhancedPrompt = this.ensureQualitySuffix(
-      `Create a polished, emotionally clear song based on this direction: ${lead}. Add a strong sense of atmosphere, intentional instrumentation, and a memorable emotional lift while keeping the arrangement intimate and suitable for a greeting card moment.`,
+      `Create a polished, emotionally clear song based on this direction: ${normalized}. Add intentional instrumentation, a memorable emotional lift, and an intimate, greeting-card-appropriate arrangement.`,
     );
 
     return {
@@ -435,7 +535,7 @@ Rules:
       tempoGuidance = ' Use longer, flowing lyric lines that suit a slow, expressive delivery.';
     }
 
-    return `Write original lyrics for a ${input.mood.toLowerCase()} ${input.occasion.toLowerCase()} greeting card song${recipient}. Keep it concise and personal, around 1-2 minutes long, with 2 verses, 2 choruses, and an optional bridge.${message}${theme}${tempoGuidance}`;
+    return `Write original lyrics for a ${input.mood.toLowerCase()} ${input.occasion.toLowerCase()} greeting card song${recipient}. Keep it short under 10 lines with [Verse] (max 4 lines), [Chorus] (max 4 lines), [Outro] (max 2 lines). Use ABAB or AABB rhyme.${message}${theme}${tempoGuidance}`;
   }
 
   private hasStructuralTags(lyrics: string): boolean {
@@ -449,34 +549,22 @@ Rules:
       return trimmed;
     }
 
-    return `${trimmed.replace(/[.\s]+$/, '')}. ${QUALITY_SUFFIX}`;
+    return `${trimmed.replace(/[,\s]+$/, '')}, ${QUALITY_SUFFIX}`;
   }
 
   private stripQualitySuffix(prompt: string): string {
     return prompt
       .replace(
-        /\.?\s*Original composition only, no copyrighted motifs or brand names\. Clear studio recording, professional mix quality\.?$/i,
+        new RegExp(
+          `,?\\s*${QUALITY_SUFFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i',
+        ),
         '',
       )
       .trim();
   }
 
-  private normalizeModel(model: string): string {
-    const allowed = new Set(['auto', 'mureka-7.5', 'mureka-7.6', 'mureka-o1', 'mureka-o2', 'mureka-8']);
-    return allowed.has(model) ? model : 'mureka-8';
-  }
-
-  private getInstrumentationText(instrumentation: string): string {
-    switch (instrumentation.toLowerCase()) {
-      case 'acoustic':
-        return 'warm acoustic guitar, gentle piano, soft percussion, and subtle supporting textures';
-      case 'electronic':
-        return 'clean synth layers, tight electronic drums, warm pads, and focused melodic textures';
-      case 'orchestral':
-        return 'expressive strings, piano, light orchestral percussion, and cinematic supporting layers';
-      default:
-        return 'a balanced mix of acoustic and modern instruments with clear melodic focus';
-    }
+  private normalizeModel(_model: string): string {
+    return 'auto';
   }
 
   private inferOccasion(prompt: string): string {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useMusicStore } from '@/stores/music-store';
 import WaveformPlayer from './WaveformPlayer';
 
@@ -9,6 +10,7 @@ interface PostGenerationModalProps {
 
 export default function PostGenerationModal({ onUseSong }: PostGenerationModalProps) {
   const { generatedSong, setCreationChoiceView, setStep, error } = useMusicStore();
+  const [showLyrics, setShowLyrics] = useState(false);
 
   if (!generatedSong) return null;
 
@@ -53,7 +55,7 @@ export default function PostGenerationModal({ onUseSong }: PostGenerationModalPr
         )}
 
         {/* Song details */}
-        <div className="bg-gray-50 rounded-xl p-4 mb-6 text-sm">
+        <div className="bg-gray-50 rounded-xl p-4 mb-4 text-sm">
           {generatedSong.style && (
             <p className="text-gray-600">
               <span className="font-medium">Style:</span> {generatedSong.style}
@@ -66,6 +68,31 @@ export default function PostGenerationModal({ onUseSong }: PostGenerationModalPr
             </p>
           )}
         </div>
+
+        {/* Collapsible lyrics */}
+        {generatedSong.lyrics && (
+          <div className="mb-4">
+            <button
+              onClick={() => setShowLyrics(!showLyrics)}
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-600 cursor-pointer"
+            >
+              <span>{showLyrics ? 'Hide lyrics' : 'View lyrics'}</span>
+              <svg
+                className={`w-4 h-4 transition-transform ${showLyrics ? 'rotate-180' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showLyrics && (
+              <div className="mt-3 px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                {generatedSong.lyrics}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="space-y-3">

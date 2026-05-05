@@ -9,6 +9,7 @@
         "seed:premade-songs": "npm run build && node dist/scripts/seed-premade-songs.js"
     },
     "dependencies": {
+        "@fal-ai/client": "^1.10.0",
         "@nestjs/common": "^11.0.0",
         "@nestjs/config": "^4.0.3",
         "@nestjs/core": "^11.0.0",
@@ -27,6 +28,7 @@
     "devDependencies": {
         "@nestjs/cli": "^11.0.0",
         "@types/express": "^5.0.0",
+        "@types/jest": "^30.0.0",
         "@types/node": "^22.0.0",
         "@types/pg": "^8.10.9",
         "ts-loader": "^9.0.0",

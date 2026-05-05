@@ -50,7 +50,7 @@ export default function CardCanvas({
     const canvas = new Canvas(canvasRef.current, {
       width: CANVAS_WIDTH,
       height: canvasHeight,
-      backgroundColor: '#000000',
+      backgroundColor: '#ffffff',
     });
 
     fabricRef.current = canvas;
@@ -62,9 +62,15 @@ export default function CardCanvas({
         height: img.height || canvasHeight,
       };
 
-      img.scaleToWidth(CANVAS_WIDTH);
-      img.scaleToHeight(canvasHeight);
+      const sourceW = img.width || CANVAS_WIDTH;
+      const sourceH = img.height || canvasHeight;
+      const scale = Math.max(CANVAS_WIDTH / sourceW, canvasHeight / sourceH);
+      img.scale(scale);
       img.set({
+        left: CANVAS_WIDTH / 2,
+        top: canvasHeight / 2,
+        originX: 'center',
+        originY: 'center',
         selectable: false,
         evented: false,
         lockMovementX: true,
@@ -125,7 +131,7 @@ export default function CardCanvas({
       canvas.dispose();
       fabricRef.current = null;
     };
-  }, [imageUrl]);
+  }, [imageUrl, aspectRatio]);
 
   const syncToolbarFromSelection = (canvas: Canvas) => {
     const active = canvas.getActiveObject();

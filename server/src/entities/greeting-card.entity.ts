@@ -72,6 +72,9 @@ export class GreetingCard {
   @Column({ name: 'delivery_message', type: 'text', nullable: true })
   deliveryMessage?: string;
 
+  @Column({ name: 'card_message', type: 'text', nullable: true })
+  cardMessage?: string;
+
   @Column({ name: 'shipping_address', type: 'jsonb', nullable: true })
   shippingAddress?: Record<string, any>;
 

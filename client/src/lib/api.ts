@@ -6,6 +6,7 @@ interface ApiOptions {
   method?: string;
   body?: unknown;
   headers?: Record<string, string>;
+  signal?: AbortSignal;
 }
 
 export interface PremadeSongRecord {
@@ -97,7 +98,7 @@ export interface SharedCardPayload {
 }
 
 async function buildRequestConfig(options: ApiOptions = {}): Promise<RequestInit> {
-  const { method = 'GET', body, headers = {} } = options;
+  const { method = 'GET', body, headers = {}, signal } = options;
   const token = await getAccessToken();
   const isFormDataBody = typeof FormData !== 'undefined' && body instanceof FormData;
 
@@ -107,6 +108,7 @@ async function buildRequestConfig(options: ApiOptions = {}): Promise<RequestInit
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
+    signal,
   };
 
   if (body && method !== 'GET') {
@@ -377,19 +379,15 @@ export interface GenerateImageRequest {
   prompt: string;
   negativePrompt?: string;
   cardId?: string;
-  aspectRatio?: '5:7' | '7:5' | '1:1';
-  resolutionTier?: '0.5k' | '1k' | '2k' | '4k';
-  model?: 'recraftv3' | 'recraftv4' | 'recraftv4_pro';
-  style?: string;
+  aspectRatio?: '3:4' | '4:3' | '1:1' | '5:7' | '7:5';
+  cardType?: string;
+  intake?: Record<string, any>;
+  imageModel?: 'gpt_image_2' | 'gpt_image_2_edit';
   styleId?: string;
   identityPreservation?: boolean;
-  referenceBaseStyle?:
-    | 'any'
-    | 'realistic_image'
-    | 'digital_illustration'
-    | 'vector_illustration'
-    | 'icon';
+  imageUsageMode?: 'preserve' | 'transform' | 'enhance';
   referenceImages?: File[];
+  signal?: AbortSignal;
 }
 
 export interface GeneratedImageRecord {
@@ -402,7 +400,6 @@ export interface GeneratedImageRecord {
   provider: string;
   providerModel: string;
   aspectRatio: string;
-  resolutionTier: string;
   width?: number;
   height?: number;
   status: string;
@@ -428,14 +425,8 @@ export const imageApi = {
       if (data.aspectRatio) {
         formData.append('aspectRatio', data.aspectRatio);
       }
-      if (data.resolutionTier) {
-        formData.append('resolutionTier', data.resolutionTier);
-      }
-      if (data.model) {
-        formData.append('model', data.model);
-      }
-      if (data.style) {
-        formData.append('style', data.style);
+      if (data.imageModel) {
+        formData.append('imageModel', data.imageModel);
       }
       if (data.styleId) {
         formData.append('styleId', data.styleId);
@@ -446,8 +437,11 @@ export const imageApi = {
           data.identityPreservation ? 'true' : 'false',
         );
       }
-      if (data.referenceBaseStyle) {
-        formData.append('referenceBaseStyle', data.referenceBaseStyle);
+      if (data.cardType) {
+        formData.append('cardType', data.cardType);
+      }
+      if (data.intake) {
+        formData.append('intake', JSON.stringify(data.intake));
       }
 
       data.referenceImages.slice(0, 5).forEach((file) => {
@@ -457,12 +451,14 @@ export const imageApi = {
       return request<GeneratedImageRecord>('/images/generate', {
         method: 'POST',
         body: formData,
+        signal: data.signal,
       });
     }
 
     return request<GeneratedImageRecord>('/images/generate', {
       method: 'POST',
       body: data,
+      signal: data.signal,
     });
   },
 
@@ -488,6 +484,30 @@ export const imageApi = {
     request<GeneratedImageRecord>(`/images/${imageId}/upscale`, {
       method: 'POST',
       body: { mode },
+    }),
+};
+
+export interface GenerateTextOptionsRequest {
+  recipient_name: string;
+  recipient_relationship: string;
+  occasion: string;
+  mood_primary: string;
+  mood_secondary: string | null;
+  memory_or_feeling?: string;
+  style?: string;
+  decorative_elements?: string[];
+  locale: string;
+}
+
+export interface GenerateTextOptionsResponse {
+  options: string[];
+}
+
+export const cardPromptApi = {
+  generateTextOptions: (data: GenerateTextOptionsRequest) =>
+    request<GenerateTextOptionsResponse>('/card-prompts/generate-text-options', {
+      method: 'POST',
+      body: data,
     }),
 };
 
@@ -551,6 +571,16 @@ export const cardTemplatesApi = {
     request<CardTemplateRecord[]>(`/card-templates${buildQueryString(query)}`),
 
   getOne: (id: string) => request<CardTemplateRecord>(`/card-templates/${id}`),
+};
+
+// Edit Requests API
+export const editRequestsApi = {
+  create: (data: { imageId: string; cardId?: string; description: string }) =>
+    request<any>('/edit-requests', { method: 'POST', body: data }),
+
+  getMine: () => request<any[]>('/edit-requests'),
+
+  getOne: (id: string) => request<any>(`/edit-requests/${id}`),
 };
 
 // Users API

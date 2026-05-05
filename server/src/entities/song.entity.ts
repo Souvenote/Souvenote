@@ -41,8 +41,8 @@ export class Song {
   @Column({ name: 'premade_song_id', type: 'uuid', nullable: true })
   premadeSongId?: string;
 
-  @Column({ name: 'mureka_task_id', type: 'varchar' })
-  murekaTaskId: string;
+  @Column({ name: 'provider_task_id', type: 'varchar', nullable: true })
+  providerTaskId?: string;
 
   @Column({ type: 'varchar', nullable: true })
   title?: string;
@@ -80,8 +80,11 @@ export class Song {
   })
   generationMethod: GenerationMethod;
 
-  @Column({ name: 'mureka_model', type: 'varchar', default: 'auto' })
-  murekaModel: string;
+  @Column({ name: 'provider_model', type: 'varchar', default: 'mureka-auto' })
+  providerModel: string;
+
+  @Column({ name: 'retry_count', type: 'int', default: 0 })
+  retryCount: number;
 
   @Column({ name: 'expires_at', type: 'timestamp' })
   expiresAt: Date;

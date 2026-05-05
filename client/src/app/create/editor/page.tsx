@@ -16,8 +16,24 @@ function EditorPageContent() {
   const designPrompt = searchParams.get('designPrompt') || '';
   const occasion = searchParams.get('occasion') || '';
   const recipientRelationship = searchParams.get('recipientRelationship') || '';
+  const senderName = searchParams.get('senderName') || '';
+  const insideMessage = searchParams.get('insideMessage') || '';
+  const cardFinish = searchParams.get('cardFinish') || '';
 
   const [isSaving, setIsSaving] = useState(false);
+
+  const buildMusicParams = () => {
+    const musicParams = new URLSearchParams();
+    if (designPrompt) musicParams.set('designPrompt', designPrompt);
+    if (occasion) musicParams.set('occasion', occasion);
+    if (recipientRelationship) musicParams.set('recipientRelationship', recipientRelationship);
+    if (initialText) musicParams.set('message', initialText);
+    if (imageId) musicParams.set('imageId', imageId);
+    if (senderName) musicParams.set('senderName', senderName);
+    if (insideMessage) musicParams.set('insideMessage', insideMessage);
+    if (cardFinish) musicParams.set('cardFinish', cardFinish);
+    return musicParams;
+  };
 
   if (!imageUrl) {
     return (
@@ -46,24 +62,11 @@ function EditorPageContent() {
       }
 
       // Continue to music flow with all context
-      const musicParams = new URLSearchParams();
-      if (designPrompt) musicParams.set('designPrompt', designPrompt);
-      if (occasion) musicParams.set('occasion', occasion);
-      if (recipientRelationship) musicParams.set('recipientRelationship', recipientRelationship);
-      if (initialText) musicParams.set('message', initialText);
-      if (imageId) musicParams.set('imageId', imageId);
-
-      router.push(`/create/music?${musicParams.toString()}`);
+      router.push(`/create/music?${buildMusicParams().toString()}`);
     } catch (err) {
       console.error('Failed to save composite:', err);
       // Still navigate — the composite save is non-blocking
-      const musicParams = new URLSearchParams();
-      if (designPrompt) musicParams.set('designPrompt', designPrompt);
-      if (occasion) musicParams.set('occasion', occasion);
-      if (recipientRelationship) musicParams.set('recipientRelationship', recipientRelationship);
-      if (initialText) musicParams.set('message', initialText);
-      if (imageId) musicParams.set('imageId', imageId);
-      router.push(`/create/music?${musicParams.toString()}`);
+      router.push(`/create/music?${buildMusicParams().toString()}`);
     } finally {
       setIsSaving(false);
     }
@@ -71,14 +74,7 @@ function EditorPageContent() {
 
   const handleCancel = () => {
     // Skip editor and go directly to music flow
-    const musicParams = new URLSearchParams();
-    if (designPrompt) musicParams.set('designPrompt', designPrompt);
-    if (occasion) musicParams.set('occasion', occasion);
-    if (recipientRelationship) musicParams.set('recipientRelationship', recipientRelationship);
-    if (initialText) musicParams.set('message', initialText);
-    if (imageId) musicParams.set('imageId', imageId);
-
-    router.push(`/create/music?${musicParams.toString()}`);
+    router.push(`/create/music?${buildMusicParams().toString()}`);
   };
 
   return (

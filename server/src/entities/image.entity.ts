@@ -39,17 +39,17 @@ export class GeneratedImage {
   @Column({ name: 'image_url', type: 'varchar', nullable: true })
   imageUrl?: string;
 
-  @Column({ type: 'varchar', default: 'recraft' })
+  @Column({ type: 'varchar', default: 'fal_gpt_image_2' })
   provider: string;
 
-  @Column({ name: 'provider_model', type: 'varchar' })
+  @Column({ name: 'provider_model', type: 'varchar', default: 'gpt_image_2' })
   providerModel: string;
 
-  @Column({ name: 'aspect_ratio', type: 'varchar', default: '5:7' })
-  aspectRatio: string;
+  @Column({ name: 'provider_task_id', type: 'varchar', nullable: true })
+  providerTaskId?: string;
 
-  @Column({ name: 'resolution_tier', type: 'varchar', default: '1k' })
-  resolutionTier: string;
+  @Column({ name: 'aspect_ratio', type: 'varchar', default: '3:4' })
+  aspectRatio: string;
 
   @Column({ type: 'int', nullable: true })
   width?: number;

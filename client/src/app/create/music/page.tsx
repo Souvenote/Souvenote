@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMusicStore } from '@/stores/music-store';
 import { cardsApi, imageApi, musicApi } from '@/lib/api';
-import AddSongModal from '@/app/components/music/AddSongModal';
 import CreditsCheckModal from '@/app/components/music/CreditsCheckModal';
 import SongCreationChoice from '@/app/components/music/SongCreationChoice';
 import ReadyToSendSongBrowser from '@/app/components/music/ReadyToSendSongBrowser';
@@ -32,6 +31,9 @@ function MusicGenerationContent() {
   const personalMessage = searchParams.get('personalMessage');
   const legacyMessage = searchParams.get('message');
   const selectedPriceCadParam = searchParams.get('selectedPriceCad');
+  const senderName = searchParams.get('senderName');
+  const insideMessage = searchParams.get('insideMessage');
+  const cardFinish = searchParams.get('cardFinish');
   const [initializedRouteKey, setInitializedRouteKey] = useState<string | null>(null);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [finalizationError, setFinalizationError] = useState<string | null>(null);
@@ -83,6 +85,9 @@ function MusicGenerationContent() {
       ...(typeof selectedPriceCad === 'number' && Number.isFinite(selectedPriceCad)
         ? { selectedPriceCad: Number(selectedPriceCad.toFixed(2)) }
         : {}),
+      ...(senderName ? { senderName } : {}),
+      ...(insideMessage ? { insideMessage } : {}),
+      ...(cardFinish ? { cardFinish } : {}),
     };
 
     return Object.keys(data).length > 0 ? data : undefined;
@@ -116,6 +121,7 @@ function MusicGenerationContent() {
         format: 'physical',
         ...(songId ? { songId } : {}),
         status: 'complete',
+        cardMessage: personalMessage || insideMessage || legacyMessage || undefined,
         personalizationData: buildPersonalizationData(),
       });
 
@@ -210,9 +216,8 @@ function MusicGenerationContent() {
       )}
 
       {/* Flow modals */}
-      {currentStep === 'initial' && <AddSongModal onSkip={handleSkip} />}
       {currentStep === 'credits_check' && <CreditsCheckModal onSkip={handleSkip} />}
-      {currentStep === 'creation_choice' && <SongCreationChoice />}
+      {currentStep === 'creation_choice' && <SongCreationChoice onSkip={handleSkip} />}
       {currentStep === 'premade_browse' && <ReadyToSendSongBrowser />}
       {currentStep === 'guided' && <GuidedQuestionnaire />}
       {currentStep === 'manual' && <ManualPromptView />}
