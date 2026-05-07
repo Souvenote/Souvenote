@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import PricingModal from '../PricingModal';
+import ReferralModal from '../ReferralModal';
 import { useMusicStore } from '@/stores/music-store';
 
 interface CreditsCheckModalProps {
@@ -10,6 +11,7 @@ interface CreditsCheckModalProps {
 
 export default function CreditsCheckModal({ onSkip }: CreditsCheckModalProps) {
   const [showPricing, setShowPricing] = useState(false);
+  const [showReferral, setShowReferral] = useState(true);
   const { songCredits, setStep } = useMusicStore();
 
   const handleBack = () => {
@@ -25,6 +27,16 @@ export default function CreditsCheckModal({ onSkip }: CreditsCheckModalProps) {
 
   if (songCredits >= 1) {
     return null;
+  }
+
+  if (showReferral) {
+    return (
+      <ReferralModal
+        isOpen
+        onClose={() => setShowReferral(false)}
+        onMaybeLater={() => setShowReferral(false)}
+      />
+    );
   }
 
   return (

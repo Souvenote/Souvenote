@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import DecisionModal from './DecisionModal';
 import PricingPopup from '@/app/components/PricingPopup';
+import ReferralModal from '@/app/components/ReferralModal';
 import { Loader2 } from 'lucide-react';
 
 export default function GeneratePage() {
@@ -19,6 +20,7 @@ export default function GeneratePage() {
     const [error, setError] = useState<string | null>(null);
     const [showDecisionModal, setShowDecisionModal] = useState(false);
     const [showPricingPopup, setShowPricingPopup] = useState(false);
+    const [showReferralModal, setShowReferralModal] = useState(false);
     
     // For "keep trying" inline prompt
     const [newPrompt, setNewPrompt] = useState(initialPrompt);
@@ -75,7 +77,7 @@ export default function GeneratePage() {
         if (hasCredits) {
             setShowNewPromptInput(true);
         } else {
-            setShowPricingPopup(true);
+            setShowReferralModal(true);
         }
     };
 
@@ -138,7 +140,16 @@ export default function GeneratePage() {
                 />
             )}
 
-            <PricingPopup 
+            <ReferralModal
+                isOpen={showReferralModal}
+                onClose={() => setShowReferralModal(false)}
+                onMaybeLater={() => {
+                    setShowReferralModal(false);
+                    setShowPricingPopup(true);
+                }}
+            />
+
+            <PricingPopup
                 isOpen={showPricingPopup}
                 onClose={() => {
                    setShowPricingPopup(false);

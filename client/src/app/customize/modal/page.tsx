@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles, Wand2, RefreshCcw } from 'lucide-react';
 import AiChatBot from '@/app/components/AiChatBot';
+import ReferralModal from '@/app/components/ReferralModal';
+import PricingPopup from '@/app/components/PricingPopup';
+import { useAuth } from '@/context/AuthContext';
 
 type Step = 'upload' | 'details' | 'confirm';
 
@@ -19,7 +22,10 @@ const FONT_STYLES = ['Classic Serif', 'Elegant Script', 'Modern Sans', 'Handwrit
 
 export default function CustomizeModalPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState<Step>('upload');
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [showPricingPopup, setShowPricingPopup] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     photo: null,
     name: '',
@@ -59,10 +65,28 @@ export default function CustomizeModalPage() {
 
   const generateRecraftImage = () => {
     if (!aiPrompt.trim()) return;
+    const hasCredits = (user?.imageCreditBalance || 0) > 0;
+    if (!hasCredits) {
+      setShowReferralModal(true);
+      return;
+    }
     router.push(`/generate?prompt=${encodeURIComponent(aiPrompt)}`);
   };
 
   return (
+    <>
+    <ReferralModal
+      isOpen={showReferralModal}
+      onClose={() => setShowReferralModal(false)}
+      onMaybeLater={() => {
+        setShowReferralModal(false);
+        setShowPricingPopup(true);
+      }}
+    />
+    <PricingPopup
+      isOpen={showPricingPopup}
+      onClose={() => setShowPricingPopup(false)}
+    />
     <div className="min-h-screen bg-black/50 flex items-center justify-center p-6 fixed inset-0 z-50">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[620px] max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -349,5 +373,6 @@ export default function CustomizeModalPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
