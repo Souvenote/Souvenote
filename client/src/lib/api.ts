@@ -420,5 +420,78 @@ export const usersApi = {
   getMe: () => request<any>('/users/me'),
 };
 
+// Trust Circles API
+export interface TrustCircle {
+  id: string;
+  ownerUserId: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface TrustCircleMember {
+  id: string;
+  circleId: string;
+  userId?: string;
+  invitedEmail: string;
+  status: 'pending' | 'active';
+  createdAt: string;
+}
+
+export const trustCirclesApi = {
+  getMyCircles: () => request<TrustCircle[]>('/trust-circles'),
+
+  createCircle: (name: string) =>
+    request<TrustCircle>('/trust-circles', { method: 'POST', body: { name } }),
+
+  inviteMember: (circleId: string, email: string) =>
+    request<TrustCircleMember>(`/trust-circles/${circleId}/invite`, { method: 'POST', body: { email } }),
+
+  getMembers: (circleId: string) =>
+    request<TrustCircleMember[]>(`/trust-circles/${circleId}/members`),
+
+  deleteCircle: (circleId: string) =>
+    request<void>(`/trust-circles/${circleId}`, { method: 'DELETE' }),
+
+  removeMember: (circleId: string, memberId: string) =>
+    request<void>(`/trust-circles/${circleId}/members/${memberId}`, { method: 'DELETE' }),
+
+  acceptInvite: (token: string) =>
+    request<void>('/trust-circles/accept', { method: 'POST', body: { token } }),
+};
+
+// Contacts API
+export interface Contact {
+  id: string;
+  ownerUserId: string;
+  contactName: string;
+  contactEmail?: string;
+  contactBirthday?: string;
+  mailingAddress?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateContactPayload {
+  contactName: string;
+  contactEmail?: string;
+  contactBirthday?: string;
+  mailingAddress?: string;
+  notes?: string;
+}
+
+export const contactsApi = {
+  getContacts: () => request<Contact[]>('/contacts'),
+
+  createContact: (data: CreateContactPayload) =>
+    request<Contact>('/contacts', { method: 'POST', body: data }),
+
+  updateContact: (id: string, data: Partial<CreateContactPayload>) =>
+    request<Contact>(`/contacts/${id}`, { method: 'PATCH', body: data }),
+
+  deleteContact: (id: string) =>
+    request<void>(`/contacts/${id}`, { method: 'DELETE' }),
+};
+
 export { ApiError };
 export default request;
