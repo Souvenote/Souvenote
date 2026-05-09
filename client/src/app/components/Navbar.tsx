@@ -170,6 +170,13 @@ export default function Navbar() {
                   <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
                   <div className="absolute right-0 top-full z-50 mt-3 w-44 rounded-xl border border-gray-100 bg-white py-2 shadow-xl">
                     <Link
+                      href="/calendar"
+                      onClick={() => setProfileOpen(false)}
+                      className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
+                    >
+                      Calendar
+                    </Link>
+                    <Link
                       href="/account"
                       onClick={() => setProfileOpen(false)}
                       className="block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"

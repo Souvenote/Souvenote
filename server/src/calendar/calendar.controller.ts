@@ -8,6 +8,8 @@ class CreateEventDto {
   eventDate!: string;
   reminderOffsetDays?: number;
   description?: string;
+  circleId?: string;
+  occasionPersonId?: string;
 }
 
 @Controller('calendar')

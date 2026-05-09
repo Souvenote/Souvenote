@@ -420,6 +420,40 @@ export const usersApi = {
   getMe: () => request<any>('/users/me'),
 };
 
+// Calendar API
+export interface CalendarEvent {
+  id: string;
+  userId: string;
+  circleId?: string;
+  occasionPersonId?: string;
+  title: string;
+  description?: string;
+  eventDate: string;
+  reminderOffsetDays: number;
+  reminderSent: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateEventPayload {
+  title: string;
+  eventDate: string;
+  reminderOffsetDays?: number;
+  description?: string;
+  circleId?: string;
+  occasionPersonId?: string;
+}
+
+export const calendarApi = {
+  getEvents: () => request<CalendarEvent[]>('/calendar/events'),
+
+  createEvent: (data: CreateEventPayload) =>
+    request<CalendarEvent>('/calendar/events', { method: 'POST', body: data }),
+
+  deleteEvent: (id: string) =>
+    request<void>(`/calendar/events/${id}`, { method: 'DELETE' }),
+};
+
 // Trust Circles API
 export interface TrustCircle {
   id: string;
